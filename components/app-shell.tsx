@@ -6,6 +6,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { TrackPlayer } from '@/components/track-player'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -46,6 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className={cn('mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8')}>{children}</main>
+        <TrackPlayer tracks={[]} persistent />
       </div>
     </div>
   )

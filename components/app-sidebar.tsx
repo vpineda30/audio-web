@@ -31,17 +31,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     let active = true
 
     async function loadUser() {
-      const token = window.localStorage.getItem('token')
       const userId = window.localStorage.getItem('userId')
 
-      if (!token || !userId) {
+      if (!userId) {
         if (active) setUserActive(null)
         return
       }
 
       try {
         const response = await userWebhook.findById(userId)
-        const data = response.user as Record<string, unknown>
+        const data = response.user as unknown as Record<string, unknown>
 
         if (!active) return
 
@@ -71,7 +70,6 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const displayUser = userActive ?? { name: 'Usuário', email: 'Carregando...', initials: 'U' }
 
   function handleLogout() {
-    window.localStorage.removeItem('token')
     window.localStorage.removeItem('userId')
     router.push('/login')
   }

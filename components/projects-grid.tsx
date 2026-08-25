@@ -7,7 +7,53 @@ import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { projectWebhook } from '@/hooks/api/Projects.webhook'
-import { formatDate, type Project } from '@/lib/data'
+import { formatDate, type Project, type Track } from '@/lib/data'
+
+type ApiProject = {
+  id?: string
+  name: string
+  description?: string | null
+  duration?: number | null
+  size?: number | null
+  color?: string | null
+  createdAt?: string
+  updatedAt?: string
+  tracks?: Array<{
+    id: string
+    name: string
+    niche?: string[]
+    projectId?: string
+    createdAt?: string
+    updatedAt?: string
+    versions?: Array<{
+      id: string
+      name: string
+      duration?: number | null
+      fileSize?: string | number
+      mimeType?: string
+      createdAt?: string
+    }>
+  }>
+}
+
+function mapTrack(track: NonNullable<ApiProject['tracks']>[number]): Track {
+  const version = track.versions?.[0]
+  const mimeType = version?.mimeType ?? ''
+  const format = mimeType.includes('wav') ? 'wav' : 'mp3'
+
+  return {
+    id: track.id,
+    name: track.name,
+    format,
+    duration: Number(version?.duration ?? 0),
+    sizeMB: Number(version?.fileSize ?? 0) / (1024 * 1024),
+    bpm: 0,
+    key: '',
+    addedAt: track.createdAt ?? '',
+    src: '',
+    versionName: version?.name,
+  }
+}
 
 export function ProjectsGrid({ projects }: { projects: Project[] }) {
   const [query, setQuery] = useState('')
@@ -19,26 +65,26 @@ export function ProjectsGrid({ projects }: { projects: Project[] }) {
 
     async function loadProjects() {
       const userId = localStorage.getItem('userId')
-      const token = localStorage.getItem('token')
 
-      if (!userId || !token) return
+      if (!userId) return
 
       try {
         setIsLoading(true)
 
-        const response = await projectWebhook.findAll(token, userId)
+        const response = await projectWebhook.findAll()
 
         if (!active) return
 
-        const mappedProjects: Project[] = response.map((project, index) => ({
-          id: (project as any).id ?? project.name ?? `project-${index}`,
+        const mappedProjects: Project[] = (response as ApiProject[]).map((project, index) => ({
+          id: project.id ?? project.name ?? `project-${index}`,
           name: project.name,
           description: project.description ?? 'Sem Descrição',
-          color: project.color || "#EF4444",
+          duration: project.duration,
+          color: project.color || '#EF4444',
           size: project.size || 0,
-          createAt: project.createAt,
-          updateAt: project.updateAt,
-          tracks: (project as any).tracks ?? [],
+          createAt: project.createdAt ?? '',
+          updateAt: project.updatedAt ?? '',
+          tracks: (project.tracks ?? []).map(mapTrack),
         }))
 
         setProjectList(mappedProjects.length > 0 ? mappedProjects : projects)
@@ -97,7 +143,7 @@ export function ProjectsGrid({ projects }: { projects: Project[] }) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((p) => {
-            const totalSeconds = p.tracks.reduce((s, t) => s + t.duration, 0)
+            const totalSeconds = Number(p.duration ?? p.tracks.reduce((sum, track) => sum + Number(track.duration || 0), 0))
             const totalMin = Math.round(totalSeconds / 60)
             return (
               <Link key={p.id} href={`/projects/${p.id}`}>

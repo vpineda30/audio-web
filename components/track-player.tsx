@@ -15,15 +15,26 @@ import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import { formatTime, formatFileSize, type Track } from '@/lib/data'
 
-export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Track[]; onEditTrack?: (track: Track) => void; onDeleteTrack?: (track: Track) => void }) {
+type TrackPlayerProps = {
+  tracks: Track[]
+  remote?: boolean
+  persistent?: boolean
+  onEditTrack?: (track: Track) => void
+  onDeleteTrack?: (track: Track) => void
+  onNewVersion?: (track: Track) => void
+}
+
+export function TrackPlayer({ tracks, remote = false, persistent = false, onEditTrack, onDeleteTrack, onNewVersion }: TrackPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const [playlist, setPlaylist] = useState<Track[]>([])
   const [currentIndex, setCurrentIndex] = useState<number | null>(null)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(50)
 
-  const current = currentIndex !== null ? tracks[currentIndex] : null
+  const availableTracks = persistent ? playlist : tracks
+  const current = currentIndex !== null ? availableTracks[currentIndex] : null
 
   async function playAudio(audio: HTMLAudioElement) {
     try {
@@ -39,7 +50,12 @@ export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Tr
 
   async function selectTrack(index: number) {
     const audio = audioRef.current
-    const track = tracks[index]
+    const track = availableTracks[index]
+
+    if (remote) {
+      window.dispatchEvent(new CustomEvent('audio:select-track', { detail: { tracks, index } }))
+      return
+    }
 
     if (!audio || !track?.src) {
       toast.error('Áudio indisponível para esta faixa.')
@@ -54,6 +70,7 @@ export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Tr
     setCurrentIndex(index)
     audio.src = track.src
     audio.currentTime = 0
+    audio.load()
     await playAudio(audio)
   }
 
@@ -78,7 +95,7 @@ export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Tr
     const audio = audioRef.current
     if (!audio || currentIndex === null) return
 
-    const track = tracks[currentIndex]
+    const track = availableTracks[currentIndex]
     if (!track?.src) {
       toast.error('Áudio indisponível para esta faixa.')
       return
@@ -91,16 +108,23 @@ export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Tr
       if (audio.src !== track.src) {
         audio.src = track.src
         audio.currentTime = 0
+        audio.load()
       }
       playAudio(audio)
     }
   }
 
   async function skip(dir: 1 | -1) {
-    if (currentIndex === null || tracks.length === 0) return
-    const next = (currentIndex + dir + tracks.length) % tracks.length
+    if (currentIndex === null || availableTracks.length === 0) return
+    const next = (currentIndex + dir + availableTracks.length) % availableTracks.length
+
+    if (persistent) {
+      setCurrentIndex(next)
+      return
+    }
+
     const audio = audioRef.current
-    const track = tracks[next]
+    const track = availableTracks[next]
 
     if (!audio || !track?.src) {
       toast.error('Áudio indisponível para esta faixa.')
@@ -110,8 +134,35 @@ export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Tr
     setCurrentIndex(next)
     audio.src = track.src
     audio.currentTime = 0
+    audio.load()
     await playAudio(audio)
   }
+
+  useEffect(() => {
+    if (!persistent) return
+
+    function handleTrackSelection(event: Event) {
+      const detail = (event as CustomEvent<{ tracks: Track[]; index: number }>).detail
+      setPlaylist(detail.tracks)
+      setCurrentIndex(detail.index)
+    }
+
+    window.addEventListener('audio:select-track', handleTrackSelection)
+    return () => window.removeEventListener('audio:select-track', handleTrackSelection)
+  }, [persistent])
+
+  useEffect(() => {
+    if (!persistent || currentIndex === null || !availableTracks[currentIndex]) return
+
+    const audio = audioRef.current
+    const track = availableTracks[currentIndex]
+    if (!audio || !track.src) return
+
+    audio.src = track.src
+    audio.currentTime = 0
+    audio.load()
+    playAudio(audio)
+  }, [persistent, currentIndex, availableTracks])
 
   function onSeek(value: number | readonly number[]) {
     const audio = audioRef.current
@@ -125,7 +176,7 @@ export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Tr
   return (
     <>
       {/* Lista de faixas */}
-      <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+      {!persistent && <ul className="divide-y divide-border rounded-xl border border-border bg-card">
         {tracks.map((t, i) => {
           const isCurrent = i === currentIndex
           return (
@@ -173,6 +224,9 @@ export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Tr
                   <MoreHorizontal className="size-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onNewVersion?.(t)} className="bg-primary text-primary-foreground focus:bg-primary/90 focus:text-primary-foreground">
+                    Versões
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => toast('Download iniciado', { description: t.name })}>
                     Baixar
                   </DropdownMenuItem>
@@ -190,9 +244,9 @@ export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Tr
             </li>
           )
         })}
-      </ul>
+      </ul>}
 
-      <audio
+      {!remote && <audio
         ref={audioRef}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
         onTimeUpdate={(e) => {
@@ -209,10 +263,10 @@ export function TrackPlayer({ tracks, onEditTrack, onDeleteTrack }: { tracks: Tr
           })
         }}
         preload="none"
-      />
+      />}
 
       {/* Barra do player */}
-      {current && (
+      {!remote && current && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 backdrop-blur-md md:left-64">
           <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <span className="grid size-10 shrink-0 place-items-center rounded-md bg-muted">

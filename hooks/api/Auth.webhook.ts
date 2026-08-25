@@ -2,7 +2,7 @@ import { request } from "./api";
 
 export const authWebhook = {
   login(email: string, password: string) {
-    return request<{ token: string, userId: string }>("/auth/login", {
+    return request<{ message: string; userId?: string }>("/auth/login", {
       method: "POST",
       body: {
         email,
@@ -11,9 +11,8 @@ export const authWebhook = {
     });
   },
 
-  test(token: string) {
+  test() {
     return request<{ message: string }>("/test", {
-      token,
     });
   },
 };

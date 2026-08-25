@@ -25,9 +25,15 @@ export default function LoginPage() {
 
     try {
       const response = await authWebhook.login(email, password)
-      window.localStorage.setItem("token", response.token)
-      window.localStorage.setItem("userId", response.userId)
-      router.push("/dashboard")
+      if (response.userId) {
+        window.localStorage.setItem("userId", response.userId)
+      }
+
+      const redirect = new URLSearchParams(window.location.search).get('redirect')
+      const destination = redirect?.startsWith('/') && !redirect.startsWith('//')
+        ? redirect
+        : '/dashboard'
+      router.push(destination)
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Tente novamente mais tarde.')
       toast.error('Falha no Login', {

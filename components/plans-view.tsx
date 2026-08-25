@@ -91,9 +91,8 @@ export function PlansView() {
     }
 
     const userId = localStorage.getItem('userId')
-    const token = localStorage.getItem('token')
 
-    if (!userId || !token) {
+    if (!userId) {
       toast.error('Usuário não identificado', {
         description: 'Por favor, faça login novamente.',
       })
@@ -106,8 +105,6 @@ export function PlansView() {
       setIsLoading(true)
 
       const response = await subscriptionWebhook.createCheckoutSession(
-        token,
-        userId,
         normalizedPlan,
       ) as CheckoutResponse
 
@@ -127,9 +124,8 @@ export function PlansView() {
 
   async function cancelSubscription() {
   const userId = localStorage.getItem('userId')
-  const token = localStorage.getItem('token')
 
-  if (!userId || !token) {
+  if (!userId) {
     toast.error('Usuário não identificado', {
       description: 'Por favor, faça login novamente.',
     })
@@ -140,8 +136,6 @@ export function PlansView() {
     setIsLoading(true)
 
     const response = await subscriptionWebhook.cancelSubscription(
-      token,
-      userId,
     )
 
     toast.success('Assinatura cancelada', {
@@ -163,9 +157,8 @@ export function PlansView() {
     skipPending?: boolean
   } = {}) {
     const userId = localStorage.getItem('userId')
-    const token = localStorage.getItem('token')
 
-    if (!userId || !token) {
+    if (!userId) {
       toast.error('Usuário não identificado', {
         description: 'Por favor, faça login novamente.',
       })

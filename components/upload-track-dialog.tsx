@@ -22,10 +22,26 @@ export function UploadTrackDialog({
   projectId,
   projectName,
   onUploadSuccess,
+  onUpload,
+  triggerLabel = 'Enviar faixa',
+  dialogTitle = 'Enviar faixa',
+  dialogDescription = 'Formatos suportados: .mp3 e .wav.',
+  successMessage = 'Faixa enviada',
 }: {
-  projectId: string
+  projectId?: string
   projectName: string
   onUploadSuccess?: () => void
+  onUpload?: (data: {
+    name: string
+    bpm: number
+    key: string
+    duration: number
+    file: File
+  }) => Promise<void | boolean>
+  triggerLabel?: string
+  dialogTitle?: string
+  dialogDescription?: string
+  successMessage?: string
 }) {
   const [open, setOpen] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
@@ -33,7 +49,7 @@ export function UploadTrackDialog({
   const [uploading, setUploading] = useState(false)
   const [trackName, setTrackName] = useState('')
   const [bpm, setBpm] = useState('')
-  const [key, setKey] = useState(trackKeyOptions[0].value)
+  const [key, setKey] = useState<string>(trackKeyOptions[0].value)
   const [duration, setDuration] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -48,7 +64,7 @@ export function UploadTrackDialog({
     }
 
     audio.onerror = () => {
-      toast.error('NÃ£o foi possÃ­vel ler a duraÃ§Ã£o do arquivo')
+      toast.error('Não foi possível ler a duração do arquivo')
       URL.revokeObjectURL(url)
     }
 
@@ -64,44 +80,48 @@ export function UploadTrackDialog({
     }
 
     if (!trackName.trim()) {
-      toast.error('Nome da faixa Ã© obrigatÃ³rio')
+      toast.error('Nome da faixa é obrigatório')
       return
     }
 
     if (!bpm || isNaN(Number(bpm))) {
-      toast.error('BPM deve ser um nÃºmero vÃ¡lido')
+      toast.error('BPM deve ser um número válido')
       return
     }
 
     if (!key.trim()) {
-      toast.error('Tom (Key) Ã© obrigatÃ³rio')
+      toast.error('Tom (Key) é obrigatório')
       return
     }
 
-    const userId = localStorage.getItem('userId')
-    const token = localStorage.getItem('token')
-
-    if (!userId || !token) {
-      toast.error('UsuÃ¡rio nÃ£o autenticado')
-      return
-    }
+    if (!onUpload && !projectId) return
 
     try {
       setUploading(true)
 
-      await trackWebhook.create(token, {
-        userId,
-        projectId,
-        name: trackName,
-        bpm: Number(bpm),
-        key: normalizeTrackKey(key),
-        duration: Math.round(duration),
-        versionName: 'v1',
-        file: selectedFile,
-      })
+      if (onUpload) {
+        const uploadResult = await onUpload({
+          name: trackName.trim(),
+          bpm: Number(bpm),
+          key: normalizeTrackKey(key),
+          duration: Math.round(duration),
+          file: selectedFile,
+        })
+        if (uploadResult === false) return
+      } else {
+        await trackWebhook.create({
+          projectId: projectId!,
+          name: trackName,
+          bpm: Number(bpm),
+          key: normalizeTrackKey(key),
+          duration: Math.round(duration),
+          versionName: trackName.trim(),
+          file: selectedFile,
+        })
+      }
 
-      toast.success('Faixa enviada', {
-        description: "A faixa foi adicionada ao projeto.",
+      toast.success(successMessage, {
+        description: `${successMessage} com sucesso.`,
       })
 
       setSelectedFile(null)
@@ -113,7 +133,7 @@ export function UploadTrackDialog({
       setOpen(false)
       onUploadSuccess?.()
     } catch (error) {
-      toast.error('NÃ£o foi possÃ­vel enviar a faixa', {
+      toast.error('Não foi possível enviar a faixa', {
         description: error instanceof Error ? error.message : 'Tente novamente.',
       })
     } finally {
@@ -125,12 +145,12 @@ export function UploadTrackDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button />}>
         <UploadCloud className="size-4" />
-        Enviar faixa
+        {triggerLabel}
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Enviar faixa</DialogTitle>
-          <DialogDescription>Formatos suportados: .mp3 e .wav.</DialogDescription>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleUpload} className="flex flex-col gap-4">
           <button
@@ -145,7 +165,7 @@ export function UploadTrackDialog({
             <span className="font-mono text-xs text-muted-foreground">MP3 ou WAV</span>
             {duration > 0 && (
               <span className="font-mono text-xs text-muted-foreground">
-                DuraÃ§Ã£o: {formatTime(duration)}
+                Duração: {formatTime(duration)}
               </span>
             )}
           </button>

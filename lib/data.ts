@@ -1,11 +1,38 @@
 export type TrackFormat = 'mp3' | 'wav'
 
+export type SharePermission = 'READ' | 'DOWNLOAD' | 'EDIT'
+
+export interface ProjectShareLink {
+  id: string;
+  token?: string;
+  url?: string;
+  projectId?: string;
+  permission: SharePermission;
+  expiresAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SharedProjectResponse {
+  id: string;
+  name: string;
+  tracks: Track[];
+  permission: SharePermission;
+  expiresAt?: string | null;
+}
+
+export interface SharedDownloadResponse {
+  url: string;
+  expiresIn: number;
+}
+
 export type Track = {
   id: string
   name: string
   format: TrackFormat
   duration: number
   sizeMB: number
+  totalSizeMB?: number
   bpm: number
   key: string
   addedAt: string
@@ -47,6 +74,7 @@ export interface Project {
   id: string;
   name: string;
   description: string;
+  duration?: number | null
   tracks: Track[]
   size: number
   color: string;

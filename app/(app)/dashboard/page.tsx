@@ -7,35 +7,54 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { PageHeader } from '@/components/page-header'
-import { allTracks, formatDate, formatTime, planLimits, Project, totalTracks, usedStorageGB, User } from '@/lib/data'
+import { formatDate, formatTime, planLimits, Project, Track, User } from '@/lib/data'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { userWebhook } from '@/hooks/api/User.webhook'
 import { projectWebhook } from '@/hooks/api/Projects.webhook'
+import { trackWebhook, TrackRecord } from '@/hooks/api/Tracks.webhook'
 import { useRouter } from 'next/navigation'
 
 interface dashboardData {
   user: User
   projects: Project[]
+  tracks: DashboardTrack[]
+}
+
+interface SharedDashboardProject {
+  token: string
+  name: string
+}
+
+type DashboardTrack = Track & { projectId?: string; projectName: string }
+
+function mapTrack(track: TrackRecord): Track {
+  const version = track.versions?.[0]
+  const fileSize = Number(version?.fileSize ?? track.fileSize ?? 0)
+
+  return {
+    id: track.id,
+    name: track.name,
+    format: version?.mimeType?.includes('wav') ? 'wav' : 'mp3',
+    duration: version?.duration ?? track.duration ?? 0,
+    sizeMB: fileSize / 1_000_000,
+    bpm: version?.bpm ?? track.bpm ?? 0,
+    key: version?.key ?? track.key ?? '',
+    addedAt: version?.createdAt ?? track.createdAt ?? '',
+    src: '',
+    versionName: version?.name ?? track.versionName,
+  }
 }
 
 export default function DashboardPage() {
   const router = useRouter()
   const [dashboard, setDashboard] = useState<dashboardData | null>(null);
+  const [sharedProjects, setSharedProjects] = useState<SharedDashboardProject[]>([])
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadDashboard() {
-      let activeUser: User | null = null;
-
       try {
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-          router.replace("/login");
-          return;
-        }
-
         const userId = localStorage.getItem("userId");
 
         if (!userId) {
@@ -43,14 +62,51 @@ export default function DashboardPage() {
           return;
         }
 
-        const [userResponse, projects] = await Promise.all([
+        const [userResponse, projectsResponse, tracksResponse] = await Promise.all([
           userWebhook.findById(userId),
-          projectWebhook.findAll(token, userId),
+          projectWebhook.findAll(),
+          trackWebhook.findByUser(),
         ]);
+
+        const storedSharedProjects = JSON.parse(localStorage.getItem('sharedProjects') ?? '[]') as SharedDashboardProject[]
+        setSharedProjects(storedSharedProjects)
+
+        const projects = projectsResponse.map((project) => {
+          const apiProject = project as Project & { createdAt?: string; updatedAt?: string }
+
+          return {
+          ...project,
+          description: project.description ?? '',
+          color: project.color ?? '#EF4444',
+          size: project.size ?? 0,
+          createAt: apiProject.createdAt ?? project.createAt,
+          updateAt: apiProject.updatedAt ?? project.updateAt,
+          tracks: [],
+          }
+        })
+
+        const tracks: DashboardTrack[] = tracksResponse.map((track) => ({
+          ...mapTrack(track),
+          projectId: track.projectId,
+          projectName: projects.find((project) => project.id === track.projectId)?.name ?? 'Projeto',
+        }))
+
+        const tracksByProject = new Map<string, Track[]>()
+        tracks.forEach((track) => {
+          const projectTracks = tracksByProject.get(track.projectId ?? '') ?? []
+          projectTracks.push(track)
+          tracksByProject.set(track.projectId ?? '', projectTracks)
+        })
+
+        const projectsWithTracks = projects.map((project) => ({
+          ...project,
+          tracks: tracksByProject.get(project.id) ?? [],
+        }))
 
         setDashboard({
           user: userResponse.user,
-          projects,
+          projects: projectsWithTracks,
+          tracks,
         });
       } catch (error) {
         console.error(error);
@@ -64,8 +120,11 @@ export default function DashboardPage() {
 
   const plan = dashboard?.user.subscriptionPlan === "PRO" ? "PRO" : "FREE";
   const limit = planLimits[plan];
-  const storagePct = Math.min(100, Math.round((usedStorageGB / (limit?.storageSize || 1)) * 100))
-  const recentTracks = [...allTracks]
+  const usedStorageMB = Number(dashboard?.user.storageUsed ?? 0) / 1_000_000
+  const storageValue = plan === 'PRO' ? Number((usedStorageMB / 1024).toFixed(2)) : Number(usedStorageMB.toFixed(2))
+  const storageUnit = plan === 'PRO' ? 'GB' : 'MB'
+  const storagePct = Math.min(100, Math.round((storageValue / (limit.storageSize || 1)) * 100))
+  const recentTracks = [...(dashboard?.tracks ?? [])]
     .sort((a, b) => +new Date(b.addedAt) - +new Date(a.addedAt))
     .slice(0, 5)
 
@@ -76,11 +135,11 @@ export default function DashboardPage() {
       hint: limit.projects === Infinity ? 'Ilimitado' : `de ${limit.projects}`,
       icon: FolderOpen,
     },
-    { label: 'Faixas', value: `${totalTracks}`, hint: 'no total', icon: Music },
+    { label: 'Faixas', value: `${dashboard?.tracks.length ?? 0}`, hint: 'no total', icon: Music },
     {
       label: 'Armazenamento',
-      value: `${usedStorageGB} ${dashboard?.user.subscriptionPlan === "PRO" ? "GB" : "MB"}`,
-      hint: `de ${limit.storageSize} ${dashboard?.user.subscriptionPlan === "PRO" ? "GB" : "MB"}`,
+      value: `${storageValue} ${storageUnit}`,
+      hint: `de ${limit.storageSize} ${storageUnit}`,
       icon: HardDrive,
     },
     { label: 'Plano', value: plan, hint: 'atual', icon: Sparkles },
@@ -140,8 +199,8 @@ export default function DashboardPage() {
               </Badge>
             </div>
             <div className="mt-6 flex items-baseline gap-2">
-              <span className="text-3xl font-semibold tracking-tight">{usedStorageGB}</span>
-              <span className="text-sm text-muted-foreground">/ {limit.storageSize} {dashboard?.user.subscriptionPlan === "PRO" ? "GB" : "MB"}</span>
+              <span className="text-3xl font-semibold tracking-tight">{storageValue}</span>
+              <span className="text-sm text-muted-foreground">/ {limit.storageSize} {storageUnit}</span>
             </div>
             <Progress value={storagePct} className="mt-4" />
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
@@ -174,7 +233,7 @@ export default function DashboardPage() {
               </Link>
             </div>
             <ul className="mt-4 divide-y divide-border">
-              {recentTracks ? recentTracks.map((t) => (
+              {recentTracks.length > 0 ? recentTracks.map((t) => (
                 <li key={t.id} className="flex items-center gap-4 py-3">
                   <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted">
                     <Music className="size-4 text-muted-foreground" />
@@ -232,6 +291,31 @@ export default function DashboardPage() {
               ))}
           </div>
         </div>
+
+        {sharedProjects.length > 0 && (
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-medium">Projetos compartilhados</h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {sharedProjects.slice(0, 3).map((sharedProject) => (
+                <Link key={sharedProject.token} href={`/share/${sharedProject.token}`}>
+                  <Card className="group h-full gap-0 p-5 transition-colors hover:border-foreground/20">
+                    <div className="flex items-start justify-between">
+                      <span className="size-8 rounded-md bg-primary" aria-hidden />
+                      <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    </div>
+                    <h3 className="mt-4 font-medium">{sharedProject.name}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">Acesso por link compartilhado</p>
+                    <div className="mt-4 flex items-center gap-3 font-mono text-xs text-muted-foreground">
+                      <span>Compartilhado</span>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </motion.div>)
   )
 }

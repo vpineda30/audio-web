@@ -35,9 +35,8 @@ export function NewProjectDialog() {
     if (!trimmedName) return
 
     const userId = localStorage.getItem('userId')
-    const token = localStorage.getItem('token')
 
-    if (!userId || !token) {
+    if (!userId) {
       toast.error('Usuário não autenticado', {
         description: 'Faça login novamente para criar um projeto.',
       })
@@ -47,12 +46,9 @@ export function NewProjectDialog() {
     setCreating(true)
 
     try {
-      await projectWebhook.create(token, {
-        userid: userId,
-        project: {
-          name: trimmedName,
-          description: description.trim() || undefined,
-        },
+      await projectWebhook.create({
+        name: trimmedName,
+        description: description.trim() || undefined,
       })
 
       toast.success('Projeto criado', {
@@ -64,7 +60,7 @@ export function NewProjectDialog() {
       setOpen(false)
 
       try {
-        const all = await projectWebhook.findAll(token, userId)
+        const all = await projectWebhook.findAll()
         const created = all.find((p) => p.name === trimmedName)
 
         router.push(

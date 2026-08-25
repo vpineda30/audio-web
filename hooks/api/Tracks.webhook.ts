@@ -2,6 +2,20 @@ import { request } from "./api";
 
 export type TrackNiche = string;
 
+export interface TrackVersionRecord {
+    id: string;
+    name: string;
+    trackId: string;
+    objectKey?: string;
+    fileSize?: string | number;
+    mimeType?: string;
+    duration?: number;
+    bpm?: number;
+    key?: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
 export interface TrackRecord {
     id: string;
     name: string;
@@ -16,10 +30,11 @@ export interface TrackRecord {
     projectId?: string;
     createdAt?: string;
     updatedAt?: string;
+    versions?: TrackVersionRecord[];
+    activeVersionId?: string;
 }
 
 export interface CreateTrackPayload {
-    userId: string;
     projectId: string;
     name: string;
     versionName: string;
@@ -31,7 +46,6 @@ export interface CreateTrackPayload {
 }
 
 export interface UpdateTrackPayload {
-    userId: string;
     trackId: string;
     track: {
         name?: string;
@@ -44,9 +58,12 @@ export interface UpdateTrackPayload {
 }
 
 export interface AttachTrackFilePayload {
-    userId: string;
     trackId: string;
     file: File;
+    versionName: string;
+    duration?: number;
+    bpm?: number;
+    key?: string;
 }
 
 function appendFormData(formData: FormData, key: string, value: unknown) {
@@ -61,42 +78,27 @@ function appendFormData(formData: FormData, key: string, value: unknown) {
 }
 
 export const trackWebhook = {
-    findByUser(token: string, userId: string) {
+    findByUser() {
         return request<TrackRecord[]>("/tracks/get-tracks-by-user", {
             method: "POST",
-            token,
-            body: {
-                userId,
-            },
         });
     },
 
-    findByProject(token: string, userId: string, projectId: string) {
-        return request<TrackRecord[]>("/tracks/get-tracks-by-project", {
+    findByProject(projectId: string) {
+        return request<TrackRecord[]>(`/tracks/get-tracks-by-project/${encodeURIComponent(projectId)}`, {
             method: "POST",
-            token,
-            body: {
-                userId,
-                projectId,
-            },
         });
     },
 
-    findById(token: string, userId: string, trackId: string) {
-        return request<TrackRecord>("/tracks/get-track-by-id", {
+    findById(trackId: string) {
+        return request<TrackRecord>(`/tracks/get-track-by-id/${encodeURIComponent(trackId)}`, {
             method: "POST",
-            token,
-            body: {
-                userId,
-                trackId,
-            },
         });
     },
 
-    create(token: string, data: CreateTrackPayload) {
+    create(data: CreateTrackPayload) {
         const formData = new FormData();
 
-        appendFormData(formData, "userId", data.userId);
         appendFormData(formData, "projectId", data.projectId);
         appendFormData(formData, "name", data.name);
         appendFormData(formData, "versionName", data.versionName);
@@ -112,53 +114,54 @@ export const trackWebhook = {
 
         return request<TrackRecord>("/tracks/create-track", {
             method: "POST",
-            token,
             body: formData,
         });
     },
 
-    update(token: string, data: UpdateTrackPayload) {
-        return request<TrackRecord>("/tracks/update-track", {
+    update(data: UpdateTrackPayload) {
+        return request<TrackRecord>(`/tracks/update-track/${encodeURIComponent(data.trackId)}`, {
             method: "PUT",
-            token,
-            body: data,
+            body: data.track,
         });
     },
 
-    attachFile(token: string, data: AttachTrackFilePayload) {
+    attachFile(data: AttachTrackFilePayload) {
         const formData = new FormData();
 
-        appendFormData(formData, "userId", data.userId);
-        appendFormData(formData, "trackId", data.trackId);
         formData.append("file", data.file);
+        formData.append("versionName", data.versionName);
+        if (data.duration !== undefined) formData.append("duration", String(data.duration));
+        if (data.bpm !== undefined) formData.append("bpm", String(data.bpm));
+        if (data.key) formData.append("key", data.key);
 
-        return request<TrackRecord>("/tracks/attach-track-file", {
+        return request<TrackRecord>(`/tracks/attach-track-file/${encodeURIComponent(data.trackId)}`, {
             method: "POST",
-            token,
             body: formData,
         });
     },
 
-    delete(token: string, userId: string, trackId: string) {
-        return request<{ message?: string; data?: TrackRecord }>("/tracks/delete-track", {
-            method: "DELETE",
-            token,
-            body: {
-                userId,
-                trackId,
-            },
+    setActiveVersion(trackId: string, versionId: string) {
+        return request<TrackRecord>(`/tracks/set-active-version/${encodeURIComponent(trackId)}`, {
+            method: "PUT",
+            body: { versionId },
         });
     },
 
-    getFileUrl(token: string, data: { userId: string; trackId: string; expiresIn?: number }) {
-        return request<{ url: string }>("/tracks/get-track-file-url", {
+    deleteVersion(trackId: string, versionId: string) {
+        return request<void>(`/tracks/delete-version/${encodeURIComponent(trackId)}/${encodeURIComponent(versionId)}`, {
+            method: "DELETE",
+        });
+    },
+
+    delete(trackId: string) {
+        return request<{ message?: string; data?: TrackRecord }>(`/tracks/delete-track/${encodeURIComponent(trackId)}`, {
+            method: "DELETE",
+        });
+    },
+
+    getFileUrl(trackId: string) {
+        return request<{ url: string }>(`/tracks/get-track-file-url/${encodeURIComponent(trackId)}`, {
             method: "POST",
-            token,
-            body: {
-                userId: data.userId,
-                trackId: data.trackId,
-                expiresIn: data.expiresIn ?? 3600,
-            },
         });
     },
 };

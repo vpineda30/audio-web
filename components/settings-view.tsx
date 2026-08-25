@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
-import { planLimits, usedStorageGB } from '@/lib/data'
+import { planLimits } from '@/lib/data'
 import { userWebhook } from '@/hooks/api/User.webhook'
 
 type SettingsUser = {
@@ -21,6 +21,7 @@ type SettingsUser = {
   role: string
   plan: 'Free' | 'Pro'
   initials: string
+  storageUsed: number
 }
 
 export function SettingsView() {
@@ -68,7 +69,15 @@ export function SettingsView() {
           .join('')
           .toUpperCase() || 'U'
 
-        setUser({ id: userId, name, email, role, plan, initials })
+        setUser({
+          id: userId,
+          name,
+          email,
+          role,
+          plan,
+          initials,
+          storageUsed: Number(response.user.storageUsed ?? 0),
+        })
         setName(name)
         setEmail(email)
       } catch (error) {
@@ -101,6 +110,11 @@ export function SettingsView() {
     }
   }
 
+  const usedStorageMB = (user?.storageUsed ?? 0) / 1_000_000
+  const storageValue = user?.plan === 'Pro'
+    ? Number((usedStorageMB / 1024).toFixed(2))
+    : Number(usedStorageMB.toFixed(2))
+
   async function handleDelete() {
     if (!user || deleting) return
     const confirmed = window.confirm('Tem certeza que deseja excluir sua conta? Esta ação é irreversível.')
@@ -117,7 +131,6 @@ export function SettingsView() {
     try {
       await userWebhook.delete(userId)
 
-      window.localStorage.removeItem('token')
       window.localStorage.removeItem('userId')
 
       toast.success('Conta excluída com sucesso')
@@ -200,7 +213,7 @@ export function SettingsView() {
             <div>
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Armazenamento</p>
               <p className="mt-1">
-                {usedStorageGB} / {limit.storageSize} {user?.plan === 'Pro' ? 'GB' : 'MB'}
+                {storageValue} / {limit.storageSize} {user?.plan === 'Pro' ? 'GB' : 'MB'}
               </p>
             </div>
             <div>
@@ -235,7 +248,7 @@ export function SettingsView() {
         </Card>
 
         {/* Zona de perigo */}
-        <Card className="border-destructive/30 p-6">
+        <Card className="border-destructive/30 p-6 mb-20 border">
           <h2 className="text-sm font-medium text-destructive">Zona de perigo</h2>
 
           <Separator className="my-4" />
