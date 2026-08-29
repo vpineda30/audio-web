@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { UploadTrackDialog } from '@/components/upload-track-dialog'
+import { API_URL } from '@/hooks/api/api'
 import { projectWebhook } from '@/hooks/api/Projects.webhook'
 import { formatDate, formatFileSize, formatTime, formatTrackKey, normalizeTrackKey, trackKeyOptions } from '@/lib/data'
 
@@ -44,6 +45,7 @@ type SharedProject = {
     tracks: SharedTrack[]
     permission: 'READ' | 'DOWNLOAD' | 'EDIT'
     expiresAt?: string | null
+    updatedAt?: string | null
 }
 
 function normalizeTrack(track: SharedTrack) {
@@ -60,6 +62,13 @@ function normalizeTrack(track: SharedTrack) {
         key: version?.key ?? track.key ?? '—',
         sizeMB: totalFileSize / (1024 * 1024),
     }
+}
+
+function formatExpirationDate(value: string | null | undefined) {
+    if (!value) return null
+
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : date.toLocaleString('pt-BR')
 }
 
 export default function SharedProjectPage() {
@@ -283,11 +292,25 @@ export default function SharedProjectPage() {
     async function downloadTrack(trackId: string) {
         try {
             setDownloadingTrackId(trackId)
-            const response = await projectWebhook.getSharedTrackDownloadUrl(token, trackId)
-            if (!response.url) throw new Error('URL não encontrada.')
+            const track = project?.tracks.find((item) => item.id === trackId)
+            const fileName = normalizeTrack(track ?? { id: trackId, name: 'track' }).name || 'track'
+            const response = await fetch(`${API_URL}/share/${encodeURIComponent(token)}/tracks/${encodeURIComponent(trackId)}/download`, {
+                cache: 'no-store',
+                credentials: 'include',
+            })
+
+            if (!response.ok) throw new Error('Falha ao carregar o arquivo para download.')
+
+            const blob = await response.blob()
+            const objectUrl = URL.createObjectURL(blob)
             const anchor = document.createElement('a')
-            anchor.href = response.url
+            anchor.href = objectUrl
+            anchor.download = `${fileName.replace(/[\\/:*?\"<>|]/g, '-').trim() || 'track'}.${blob.type.includes('wav') ? 'wav' : 'mp3'}`
+            anchor.style.display = 'none'
+            document.body.appendChild(anchor)
             anchor.click()
+            document.body.removeChild(anchor)
+            URL.revokeObjectURL(objectUrl)
         } catch (error) {
             toast.error('Não foi possível baixar a faixa.', { description: error instanceof Error ? error.message : 'Tente novamente.' })
         } finally {
@@ -376,14 +399,15 @@ export default function SharedProjectPage() {
     const canDownload = project.permission === 'DOWNLOAD' || project.permission === 'EDIT'
     const canEdit = project.permission === 'EDIT'
     const currentTrack = project.tracks.find((track) => track.id === currentTrackId)
+    const expirationLabel = formatExpirationDate(project.expiresAt)
 
     return (
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 pb-28 sm:px-6 lg:px-8">
-            {(isAuthenticated && (
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 pb-28 sm:px-6 lg:px-8 mt-8">
+            {isAuthenticated && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => router.push('/dashboard')} className="-ml-2 w-fit text-muted-foreground">
                     <ArrowLeft className="size-4" /> Voltar
                 </Button>
-            )) || (<div className="text-sm font-medium underline-offset-4 hover:underline mt-5"></div>)}
+            )}
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-4">
@@ -392,7 +416,7 @@ export default function SharedProjectPage() {
                         <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
                         <p className="mt-1 max-w-xl text-sm text-muted-foreground">{project.description || 'Sem descrição'}</p>
                         <p className="mt-2 font-mono text-xs text-muted-foreground">
-                            {project.expiresAt ? `Link expira em ${new Date(project.expiresAt).toLocaleString('pt-BR')}` : `Compartilhado${project.updateAt ? ` · Atualizado em ${formatDate(project.updateAt)}` : ''}`}
+                            {expirationLabel ? `Link expira em ${expirationLabel}` : `Compartilhado${(project.updatedAt ?? project.updateAt) ? ` · Atualizado em ${formatDate(project.updatedAt ?? project.updateAt)}` : ''}`}
                         </p>
                     </div>
                 </div>

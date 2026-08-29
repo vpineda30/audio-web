@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { userWebhook } from '@/hooks/api/User.webhook'
+import { authWebhook } from '@/hooks/api/Auth.webhook'
 import { Monogram } from './monogram'
 
 const nav = [
@@ -31,15 +32,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     let active = true
 
     async function loadUser() {
-      const userId = window.localStorage.getItem('userId')
-
-      if (!userId) {
-        if (active) setUserActive(null)
-        return
-      }
-
       try {
-        const response = await userWebhook.findById(userId)
+        const response = await userWebhook.me()
         const data = response.user as unknown as Record<string, unknown>
 
         if (!active) return
@@ -69,9 +63,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const displayUser = userActive ?? { name: 'Usuário', email: 'Carregando...', initials: 'U' }
 
-  function handleLogout() {
-    window.localStorage.removeItem('userId')
-    router.push('/login')
+  async function handleLogout() {
+    try {
+      await authWebhook.logout()
+    } finally {
+      router.push('/login')
+    }
   }
 
   return (

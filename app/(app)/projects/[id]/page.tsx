@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Check, Clock, Filter, HardDrive, Music, Pencil, Trash2, UploadCloud } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Clock, Filter, HardDrive, Music, Pencil, Trash2, UploadCloud } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -58,7 +58,6 @@ export default function ProjectDetailPage() {
   const [trackFilterMinBpm, setTrackFilterMinBpm] = useState('')
   const [trackFilterMaxBpm, setTrackFilterMaxBpm] = useState('')
   const [trackFilterKey, setTrackFilterKey] = useState('')
-  const [trackFilterNiche, setTrackFilterNiche] = useState('')
   const [filteringTracks, setFilteringTracks] = useState(false)
   const [versionDialogOpen, setVersionDialogOpen] = useState(false)
   const [versionTrack, setVersionTrack] = useState<Track | null>(null)
@@ -155,15 +154,16 @@ export default function ProjectDetailPage() {
           name: selected.name,
           description: selected.description ?? 'Sem Descrição',
           color: selected.color ?? '#EF4444',
-          createAt: selected.createAt,
-          updateAt: selected.updateAt,
-          size: selected.size,
+          createAt: selected.createdAt ?? selected.createAt ?? '',
+          updateAt: selected.updatedAt ?? selected.updateAt ?? '',
+          size: selected.size ?? 0,
           tracks: [],
         }
 
         const projectTracks = await fetchProjectTracks(mappedProject.id)
 
         mappedProject.tracks = projectTracks
+        mappedProject.size = projectTracks.reduce((total, track) => total + (track.totalSizeMB ?? track.sizeMB), 0)
 
         setProject(mappedProject)
         setTracks(projectTracks)
@@ -358,15 +358,12 @@ export default function ProjectDetailPage() {
         minBpm: trackFilterMinBpm ? Number(trackFilterMinBpm) : undefined,
         maxBpm: trackFilterMaxBpm ? Number(trackFilterMaxBpm) : undefined,
         key: trackFilterKey || undefined,
-        niche: trackFilterNiche
-          .split(',')
-          .map((niche) => niche.trim())
-          .filter(Boolean),
       })
 
       const mappedTracks = await Promise.all(
         filteredTracks.map(async (track) => {
-          const latestVersion = track.versions?.[0]
+          const latestVersion = track.versions?.find((version) => version.id === track.activeVersionId)
+            ?? track.versions?.[0]
           let src = ''
 
           try {
@@ -409,7 +406,6 @@ export default function ProjectDetailPage() {
     setTrackFilterMinBpm('')
     setTrackFilterMaxBpm('')
     setTrackFilterKey('')
-    setTrackFilterNiche('')
     await refreshTracks()
     setTrackFilterOpen(false)
   }
@@ -561,6 +557,15 @@ export default function ProjectDetailPage() {
       })
 
       setShareLink(response.url ?? '')
+      const token = response.url?.split('/').pop()
+      if (token) {
+        const stored = JSON.parse(localStorage.getItem('sharedProjects') ?? '[]') as Array<Record<string, unknown>>
+        const next = stored.filter((item) => item.token !== token)
+        localStorage.setItem('sharedProjects', JSON.stringify([
+          { token, name: project.name, projectId: project.id, shareLinkId: response.id, expiresAt: response.expiresAt },
+          ...next,
+        ]))
+      }
       toast.success('Link de compartilhamento criado')
     } catch (error) {
       toast.error('Não foi possível criar o link de compartilhamento', {
@@ -604,6 +609,8 @@ export default function ProjectDetailPage() {
     { label: 'Tamanho', value: `${totalSizeMB.toFixed(2)} MB`, icon: HardDrive },
   ]
 
+  console.log('project', project)
+
   return (
     <motion.div className="flex flex-col gap-8 pb-28"
       initial={{ opacity: 0, y: 10 }}
@@ -623,8 +630,8 @@ export default function ProjectDetailPage() {
           Projetos
         </Button>
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-4">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
             <ColorPickerPopover
               selectedColor={project.color}
               onSelectColor={(newColor) => {
@@ -632,17 +639,17 @@ export default function ProjectDetailPage() {
               }}
             />
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-balance">{project.name}</h1>
-              <p className="mt-1 max-w-xl text-sm text-muted-foreground">{project.description}</p>
+              <h1 className="break-words text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{project.name}</h1>
+              <p className="mt-1 max-w-xl break-words text-sm text-muted-foreground">{project.description}</p>
               <p className="mt-2 font-mono text-xs text-muted-foreground">
-                Atualizado em {formatDate(project.updateAt)}
+                Atualizado em {formatDate(project.updateAt ?? project.createAt)}
               </p>
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
-              <DialogTrigger render={<Button variant="outline" size="sm" />}>
+              <DialogTrigger render={<Button variant="outline" size="default" />}>
                 <Pencil className="size-4" />
                 Editar
               </DialogTrigger>
@@ -670,11 +677,11 @@ export default function ProjectDetailPage() {
             </Dialog>
 
             <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-              <DialogTrigger render={<Button variant="outline" size="sm" />}>
+              <DialogTrigger render={<Button variant="outline" size="default" />}>
                 <UploadCloud className="size-4" />
                 Compartilhar
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md gap-5 p-5 sm:p-6">
                 <DialogHeader>
                   <DialogTitle>Compartilhar projeto</DialogTitle>
                   <DialogDescription>
@@ -685,16 +692,19 @@ export default function ProjectDetailPage() {
                 <div className="flex flex-col gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="share-permission">Permissão</Label>
-                    <select
-                      id="share-permission"
-                      value={sharePermission}
-                      onChange={(e) => setSharePermission(e.target.value as 'READ' | 'DOWNLOAD' | 'EDIT')}
-                      className="h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                    >
-                      <option value="READ">Leitura</option>
-                      <option value="DOWNLOAD">Download</option>
-                      <option value="EDIT">Edição</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        id="share-permission"
+                        value={sharePermission}
+                        onChange={(e) => setSharePermission(e.target.value as 'READ' | 'DOWNLOAD' | 'EDIT')}
+                        className="h-10 w-full appearance-none rounded-lg border border-input bg-background px-3 pr-9 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-popover [&>option]:text-popover-foreground"
+                      >
+                        <option value="READ">Leitura</option>
+                        <option value="DOWNLOAD">Download</option>
+                        <option value="EDIT">Edição</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -718,20 +728,20 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
 
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setShareOpen(false)}>
+                <DialogFooter className="gap-2 sm:gap-2">
+                  <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setShareOpen(false)}>
                     Fechar
                   </Button>
                   {!shareLink ? (
-                    <Button type="button" onClick={handleCreateShareLink} disabled={creatingShareLink}>
+                    <Button type="button" className="w-full sm:w-auto" onClick={handleCreateShareLink} disabled={creatingShareLink}>
                       {creatingShareLink ? 'Gerando...' : 'Gerar link'}
                     </Button>
                   ) : (
                     <>
-                      <Button type="button" variant="outline" onClick={handleCreateShareLink} disabled={creatingShareLink}>
+                      <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleCreateShareLink} disabled={creatingShareLink}>
                         {creatingShareLink ? 'Atualizando...' : 'Atualizar link'}
                       </Button>
-                      <Button type="button" onClick={handleCopyShareLink} disabled={copyingShareLink}>
+                      <Button type="button" className="w-full sm:w-auto" onClick={handleCopyShareLink} disabled={copyingShareLink}>
                         {copyingShareLink ? 'Copiando...' : 'Copiar link'}
                       </Button>
                     </>
@@ -741,7 +751,7 @@ export default function ProjectDetailPage() {
             </Dialog>
 
             <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <DialogTrigger render={<Button variant="destructive" size="sm" />}>
+              <DialogTrigger render={<Button variant="destructive" size="default" />}>
                 <Trash2 className="size-4" />
                 Deletar
               </DialogTrigger>
@@ -771,7 +781,7 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mt-6">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           {stats.map((s) => (
             <Card key={s.label} className="gap-0 p-5">
               <div className="flex items-center justify-between">
@@ -786,14 +796,14 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="mt-8">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-medium">Faixas</h2>
             <Dialog open={trackFilterOpen} onOpenChange={setTrackFilterOpen}>
               <DialogTrigger render={<Button variant="outline" size="sm" />}>
                 <Filter className="size-4" />
                 Filtrar
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-sm:max-h-[90vh] max-sm:overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Filtrar faixas</DialogTitle>
                   <DialogDescription>Use os filtros para encontrar faixas deste projeto.</DialogDescription>
@@ -835,14 +845,10 @@ export default function ProjectDetailPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="track-filter-niche">Nicho</Label>
-                    <Input id="track-filter-niche" value={trackFilterNiche} onChange={(e) => setTrackFilterNiche(e.target.value)} placeholder="Ex.: pop, trap" />
-                  </div>
                 </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={clearTrackFilters}>Limpar</Button>
-                  <Button type="button" onClick={filterProjectTracks} disabled={filteringTracks}>
+                <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={clearTrackFilters}>Limpar</Button>
+                  <Button type="button" className="w-full sm:w-auto" onClick={filterProjectTracks} disabled={filteringTracks}>
                     {filteringTracks ? 'Filtrando...' : 'Aplicar filtros'}
                   </Button>
                 </DialogFooter>

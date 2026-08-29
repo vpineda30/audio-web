@@ -1,4 +1,7 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL
+    ?? (typeof window !== "undefined"
+        ? `${window.location.protocol}//${window.location.hostname}:3000`
+        : "http://localhost:3000");
 
 type RequestOptions = {
     method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -28,7 +31,16 @@ export async function request<T>(
     const data = text ? JSON.parse(text) : null;
 
     if (!response.ok) {
-        throw new Error(data?.error ?? data?.message ?? "Erro na requisição");
+        const message = data?.error ?? data?.message ?? "Erro na requisição";
+
+        if (response.status === 401 && typeof window !== "undefined") {
+            window.localStorage.removeItem("userId");
+            if (!window.location.pathname.startsWith("/login")) {
+                window.location.assign(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+            }
+        }
+
+        throw new Error(message);
     }
 
     return data as T;

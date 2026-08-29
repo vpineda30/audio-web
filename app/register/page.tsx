@@ -43,9 +43,7 @@ export default function RegisterPage() {
   return (
     <AuthLayout>
       <div className="mb-8 lg:hidden">
-        <span className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground font-mono text-sm font-bold">
-          .a
-        </span>
+        <Monogram />
       </div>
 
       <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Cadastro</p>

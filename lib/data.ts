@@ -19,6 +19,8 @@ export interface SharedProjectResponse {
   tracks: Track[];
   permission: SharePermission;
   expiresAt?: string | null;
+  updateAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface SharedDownloadResponse {
@@ -78,8 +80,10 @@ export interface Project {
   tracks: Track[]
   size: number
   color: string;
-  createAt: string
-  updateAt: string
+  createAt?: string | null
+  updateAt?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export interface User {

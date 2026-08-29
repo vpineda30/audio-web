@@ -11,6 +11,10 @@ export const authWebhook = {
     });
   },
 
+  logout() {
+    return request<{ message: string }>('/auth/logout', { method: 'POST' });
+  },
+
   test() {
     return request<{ message: string }>("/test", {
     });

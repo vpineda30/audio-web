@@ -13,7 +13,6 @@ import { motion } from 'framer-motion'
 import { userWebhook } from '@/hooks/api/User.webhook'
 import { projectWebhook } from '@/hooks/api/Projects.webhook'
 import { trackWebhook, TrackRecord } from '@/hooks/api/Tracks.webhook'
-import { useRouter } from 'next/navigation'
 
 interface dashboardData {
   user: User
@@ -27,6 +26,10 @@ interface SharedDashboardProject {
 }
 
 type DashboardTrack = Track & { projectId?: string; projectName: string }
+
+function normalizePlan(plan?: string | null): 'PRO' | 'FREE' {
+  return String(plan ?? 'FREE').trim().toUpperCase().includes('PRO') ? 'PRO' : 'FREE'
+}
 
 function mapTrack(track: TrackRecord): Track {
   const version = track.versions?.[0]
@@ -47,7 +50,6 @@ function mapTrack(track: TrackRecord): Track {
 }
 
 export default function DashboardPage() {
-  const router = useRouter()
   const [dashboard, setDashboard] = useState<dashboardData | null>(null);
   const [sharedProjects, setSharedProjects] = useState<SharedDashboardProject[]>([])
   const [loading, setLoading] = useState(true);
@@ -55,15 +57,8 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const userId = localStorage.getItem("userId");
-
-        if (!userId) {
-          router.replace("/login");
-          return;
-        }
-
         const [userResponse, projectsResponse, tracksResponse] = await Promise.all([
-          userWebhook.findById(userId),
+          userWebhook.me(),
           projectWebhook.findAll(),
           trackWebhook.findByUser(),
         ]);
@@ -116,14 +111,20 @@ export default function DashboardPage() {
     }
 
     loadDashboard();
-  }, [router]);
+  }, []);
 
-  const plan = dashboard?.user.subscriptionPlan === "PRO" ? "PRO" : "FREE";
-  const limit = planLimits[plan];
-  const usedStorageMB = Number(dashboard?.user.storageUsed ?? 0) / 1_000_000
-  const storageValue = plan === 'PRO' ? Number((usedStorageMB / 1024).toFixed(2)) : Number(usedStorageMB.toFixed(2))
+  const plan = normalizePlan(dashboard?.user.subscriptionPlan)
+  const limit = planLimits[plan]
+  const rawStorageUsed = Number(dashboard?.user.storageUsed ?? 0)
+  const usedStorageMB = Number.isFinite(rawStorageUsed) ? rawStorageUsed / 1_000_000 : 0
+  const storageValue = plan === 'PRO'
+    ? Number((usedStorageMB / 1024).toFixed(2))
+    : Number(Math.max(usedStorageMB, 0).toFixed(2))
   const storageUnit = plan === 'PRO' ? 'GB' : 'MB'
-  const storagePct = Math.min(100, Math.round((storageValue / (limit.storageSize || 1)) * 100))
+  const storageLimit = Number(limit.storageSize ?? 0)
+  const storagePct = storageLimit > 0
+    ? Math.min(100, Math.round((storageValue / storageLimit) * 100))
+    : 0
   const recentTracks = [...(dashboard?.tracks ?? [])]
     .sort((a, b) => +new Date(b.addedAt) - +new Date(a.addedAt))
     .slice(0, 5)
@@ -261,7 +262,11 @@ export default function DashboardPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[...(dashboard?.projects ?? [])]
-              .sort((a, b) => +new Date(b.updateAt) - +new Date(a.createAt))
+              .sort((a, b) => {
+                const aDate = new Date(a.updateAt ?? a.createAt ?? 0).getTime()
+                const bDate = new Date(b.updateAt ?? b.createAt ?? 0).getTime()
+                return bDate - aDate
+              })
               .slice(0, 3)
               .map((p) => (
                 <Link key={p.id} href={`/projects/${p.id}`}>
@@ -295,9 +300,9 @@ export default function DashboardPage() {
         {sharedProjects.length > 0 && (
           <div>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-medium">Projetos compartilhados</h2>
+              <h2 className="text-sm font-medium">Projetos compartilhados recentemente</h2>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-22">
               {sharedProjects.slice(0, 3).map((sharedProject) => (
                 <Link key={sharedProject.token} href={`/share/${sharedProject.token}`}>
                   <Card className="group h-full gap-0 p-5 transition-colors hover:border-foreground/20">

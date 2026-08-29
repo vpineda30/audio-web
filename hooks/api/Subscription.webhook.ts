@@ -32,10 +32,17 @@ export const subscriptionWebhook = {
     });
   },
 
-  cancelSubscription(
-  ) {
-    return request<{ message: string }>("/payment/cancel-subscription", {
+  cancelSubscription(reason?: string) {
+    return request<{
+      message: string;
+      subscriptionId?: string;
+      status?: string;
+      cancelAtPeriodEnd?: boolean;
+      cancelAt?: number | null;
+      currentPeriodEnd?: number;
+    }>('/payment/cancel-subscription', {
       method: "POST",
+      body: reason ? { reason } : undefined,
     });
   },
 };

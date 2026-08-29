@@ -1,7 +1,5 @@
 import { request } from "./api";
 
-export type TrackNiche = string;
-
 export interface TrackVersionRecord {
     id: string;
     name: string;
@@ -22,7 +20,6 @@ export interface TrackRecord {
     bpm?: number;
     duration?: number;
     versionName?: string;
-    niche?: TrackNiche[];
     key?: string;
     objectKey?: string;
     fileSize?: string | number;
@@ -41,7 +38,6 @@ export interface CreateTrackPayload {
     bpm?: number;
     duration?: number;
     key?: string;
-    niche?: TrackNiche[] | string;
     file: File;
 }
 
@@ -52,7 +48,6 @@ export interface UpdateTrackPayload {
         bpm?: number;
         duration?: number;
         versionName?: string;
-        niche?: TrackNiche[] | string;
         key?: string;
     };
 }
@@ -105,10 +100,6 @@ export const trackWebhook = {
         appendFormData(formData, "bpm", data.bpm);
         appendFormData(formData, "duration", data.duration);
         appendFormData(formData, "key", data.key);
-
-        if (data.niche !== undefined) {
-            appendFormData(formData, "niche", typeof data.niche === "string" ? data.niche : JSON.stringify(data.niche));
-        }
 
         formData.append("file", data.file);
 

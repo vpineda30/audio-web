@@ -44,6 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning className="bg-background">
+      <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${anton.variable} font-sans antialiased`}
       >

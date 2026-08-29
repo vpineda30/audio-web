@@ -147,7 +147,7 @@ export function UploadTrackDialog({
         <UploadCloud className="size-4" />
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-sm:max-h-[90vh] max-sm:overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
@@ -197,7 +197,7 @@ export function UploadTrackDialog({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="bpm">BPM</Label>
                   <Input

@@ -7,12 +7,21 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { planLimits } from '@/lib/data'
 import { userWebhook } from '@/hooks/api/User.webhook'
+import { authWebhook } from '@/hooks/api/Auth.webhook'
 
 type SettingsUser = {
   id: string
@@ -33,7 +42,11 @@ export function SettingsView() {
   const [emailNotif, setEmailNotif] = useState(true)
   const [productNotif, setProductNotif] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveConfirmationOpen, setSaveConfirmationOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
 
   const planKey = user?.plan === 'Pro' ? 'PRO' : 'FREE'
   const limit = planLimits[planKey] 
@@ -43,14 +56,8 @@ export function SettingsView() {
     setLoadingUser(true)
 
     async function loadUser() {
-      const userId = window.localStorage.getItem('userId')
-      if (!userId) {
-        if (active) setLoadingUser(false)
-        return
-      }
-
       try {
-        const response = await userWebhook.findById(userId)
+        const response = await userWebhook.me()
 
         if (!active) return
 
@@ -70,7 +77,7 @@ export function SettingsView() {
           .toUpperCase() || 'U'
 
         setUser({
-          id: userId,
+          id: response.user.id,
           name,
           email,
           role,
@@ -96,6 +103,13 @@ export function SettingsView() {
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!user) return
+    setSaveConfirmationOpen(true)
+  }
+
+  async function confirmSave() {
+    if (!user || saving) return
+
+    setSaveConfirmationOpen(false)
     setSaving(true)
     try {
       await userWebhook.update(user.id, { name, email, })
@@ -115,23 +129,49 @@ export function SettingsView() {
     ? Number((usedStorageMB / 1024).toFixed(2))
     : Number(usedStorageMB.toFixed(2))
 
+  async function handlePasswordUpdate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!user) return
+
+    if (!newPassword.trim() || !confirmPassword.trim()) {
+      toast.error('Informe a nova senha e a confirmação.')
+      return
+    }
+
+    if (newPassword.length < 8) {
+      toast.error('A senha precisa ter pelo menos 8 caracteres.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('As senhas não coincidem.')
+      return
+    }
+
+    setChangingPassword(true)
+
+    try {
+      await userWebhook.update(user.id, { password: newPassword })
+      setNewPassword('')
+      setConfirmPassword('')
+      toast.success('Senha atualizada com sucesso')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível atualizar sua senha.'
+      toast.error(message)
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
   async function handleDelete() {
     if (!user || deleting) return
     const confirmed = window.confirm('Tem certeza que deseja excluir sua conta? Esta ação é irreversível.')
     if (!confirmed) return
 
-    const userId = window.localStorage.getItem('userId')
-
-    if (!userId) {
-      toast.error('Usuário não encontrado');
-      return;
-    }
-
     setDeleting(true)
     try {
-      await userWebhook.delete(userId)
-
-      window.localStorage.removeItem('userId')
+      await userWebhook.delete(user.id)
+      await authWebhook.logout()
 
       toast.success('Conta excluída com sucesso')
       router.push('/')
@@ -191,7 +231,72 @@ export function SettingsView() {
               </Button>
             </div>
           </form>
+
+          <div className="mt-6 rounded-xl border border-border bg-muted/30 p-4">
+            <form className="flex flex-col gap-3" onSubmit={handlePasswordUpdate}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium">Alterar senha</p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="new-password">Nova senha</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="confirm-password">Confirmar senha</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" variant="outline" disabled={changingPassword} className="w-fit">
+                {changingPassword ? 'Atualizando...' : 'Atualizar senha'}
+              </Button>
+            </form>
+          </div>
         </Card>
+
+        <Dialog open={saveConfirmationOpen} onOpenChange={setSaveConfirmationOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar alterações</DialogTitle>
+              <DialogDescription>
+                As informações do usuário serão atualizadas. Esta ação é irreversível.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setSaveConfirmationOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                onClick={confirmSave}
+                disabled={saving}
+              >
+                {saving ? 'Salvando...' : 'Confirmar alteração'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Plano e uso */}
         <Card className="p-6">
@@ -219,30 +324,6 @@ export function SettingsView() {
             <div>
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Projetos</p>
               <p className="mt-1">{limit.projects === Infinity ? 'Ilimitado' : `até ${limit.projects}`}</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Notificações */}
-        <Card className="p-6">
-          <h2 className="text-sm font-medium">Notificações</h2>
-
-          <Separator className="my-4" />
-
-          <div className="flex flex-col gap-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium">E-mails da conta</p>
-                <p className="text-sm text-muted-foreground">Atualizações de segurança e faturamento.</p>
-              </div>
-              <Switch checked={emailNotif} onCheckedChange={setEmailNotif} />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium">Novidades do produto</p>
-                <p className="text-sm text-muted-foreground">Recursos e dicas ocasionais.</p>
-              </div>
-              <Switch checked={productNotif} onCheckedChange={setProductNotif} />
             </div>
           </div>
         </Card>

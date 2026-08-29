@@ -7,6 +7,10 @@ interface UserResponse {
 }
 
 export const userWebhook = {
+    me() {
+        return request<UserResponse>("/user/me");
+    },
+
     findById(id: string) {
         return request<UserResponse>(`/user/find-user-by-id/${id}`) 
     },

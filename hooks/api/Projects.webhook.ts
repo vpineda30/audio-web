@@ -108,7 +108,6 @@ export const projectWebhook = {
 
     updateSharedTrack(token: string, trackId: string, payload: {
         name?: string;
-        niche?: string[];
         bpm?: number;
         duration?: number;
         key?: string;
@@ -184,7 +183,6 @@ export const projectWebhook = {
         minBpm?: number;
         maxBpm?: number;
         key?: string;
-        niche?: string[];
     } = {}) {
         return request<TrackRecord[]>(`/projects/filter-tracks-by-project-id/${encodeURIComponent(projectId)}`, {
             method: "POST",

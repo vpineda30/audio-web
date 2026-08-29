@@ -1,6 +1,13 @@
 import { request } from "./api";
 
 export const emailWebhook = {
+  resendVerification(email: string) {
+    return request<{ message: string }>('/email/resend-verification', {
+      method: 'POST',
+      body: { email },
+    });
+  },
+
   verifyEmail(token: string) {
     return request<{ message: string }>(`/verify-email?token=${encodeURIComponent(token)}`);
   },

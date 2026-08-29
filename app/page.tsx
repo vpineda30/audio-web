@@ -10,7 +10,7 @@ const index = [
   {
     n: '01',
     title: 'Projetos',
-    desc: 'Agrupe faixas por álbum, EP ou cliente — cada um com capa, cor e contexto próprios.',
+    desc: 'Agrupe faixas por álbum, EP ou cliente — cada com sua identidade própria.',
   },
   {
     n: '02',
@@ -19,16 +19,26 @@ const index = [
   },
   {
     n: '03',
+    title: 'Versionamento',
+    desc: 'Mantenha versões diferentes de cada faixa, com histórico de alterações e backups.',
+  },
+  {
+    n: '04',
+    title: 'Compartilhamento',
+    desc: 'Compartilhe faixas e projetos com clientes, parceiros ou amigos, com links privados.',
+  },
+  {
+    n: '05',
     title: 'Player',
     desc: 'Ouça qualquer faixa direto na plataforma, com controle de tempo e volume.',
   },
   {
-    n: '04',
+    n: '06',
     title: 'Metadados',
     desc: 'BPM, tom, duração e tamanho sempre visíveis para acelerar o seu fluxo.',
   },
   {
-    n: '05',
+    n: '07',
     title: 'Segurança',
     desc: 'Segurança de dados, faixas e projetos com criptografia de ponta a ponta.',
   }
@@ -38,7 +48,7 @@ const plans = [
   {
     id: 'Free',
     price: 'R$ 0',
-    note: 'Pra começar a organizar.',
+    note: 'Para começar a organizar.',
     perks: ['Até 5 projetos', '500 MB de espaço', 'Upload MP3 e WAV', 'Player integrado'],
     cta: 'Começar grátis',
     highlight: false,
@@ -46,7 +56,7 @@ const plans = [
   {
     id: 'Pro',
     price: 'R$ 29',
-    note: 'Pra escalar sem limite.',
+    note: 'Para escalar sua produção.',
     perks: ['Projetos ilimitados', '10 GB de espaço', 'Suporte prioritário', 'Player integrado'],
     cta: 'Assinar o Pro',
     highlight: true,
@@ -96,13 +106,13 @@ export default function LandingPage() {
         <section className="flex min-h-[92vh] flex-col justify-center px-4 sm:px-6 pb-28 sm:pb-32">
           <Reveal>
             <span className="font-mono text-[11px] uppercase tracking-[0.35em] text-muted-foreground">
-              Plataforma para produtores · MP3 · WAV
+              Plataforma para artistas e produtores musicais
             </span>
           </Reveal>
 
           <Reveal delay={80}>
             <h1 className="mt-6 font-display text-[16vw] uppercase leading-[0.82] tracking-tight text-balance sm:text-[13vw] lg:text-[11vw]">
-              Sua música
+              Sua Arte
               <br />
               merece mais
               <br />
@@ -114,7 +124,7 @@ export default function LandingPage() {
           <div className="mt-10 flex flex-col gap-8 border-t border-border pt-14 md:flex-row md:items-end md:justify-between">
             <Reveal delay={160}>
               <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-                Armazene, organize e reproduza todos os seus arquivos de áudio em um só lugar. Feito
+                Armazene, organize, reproduza e compartilhe todas as suas músicas em um só lugar. Feito
                 para o fluxo de quem leva o som a sério.
               </p>
             </Reveal>
