@@ -257,7 +257,7 @@ export default function DashboardPage() {
 
         {/* Projetos recentes */}
         <div>
-          <div className="flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-medium">Projetos atualizados recentemente</h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -299,7 +299,7 @@ export default function DashboardPage() {
 
         {sharedProjects.length > 0 && (
           <div>
-            <div className="mb-24 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-medium">Projetos compartilhados recentemente</h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-22">
