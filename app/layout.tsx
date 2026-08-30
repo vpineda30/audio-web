@@ -24,9 +24,7 @@ const anton = Anton({
 
 export const metadata: Metadata = {
   title: '.Audio — Organize seus projetos musicais',
-  description:
-    'Plataforma SaaS para produtores e artistas organizarem, armazenarem e gerenciarem seus projetos e faixas de forma simples e profissional.',
-  generator: 'v0.app',
+  description: 'Organize, versione e compartilhe seus projetos e faixas de forma simples e profissional, em um só lugar.',
 }
 
 export const viewport: Viewport = {
