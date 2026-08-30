@@ -795,7 +795,7 @@ export default function ProjectDetailPage() {
           ))}
         </div>
 
-        <div className="mt-8">
+        <div className="mt-8 mb-24">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-medium">Faixas</h2>
             <Dialog open={trackFilterOpen} onOpenChange={setTrackFilterOpen}>

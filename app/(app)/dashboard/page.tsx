@@ -257,7 +257,7 @@ export default function DashboardPage() {
 
         {/* Projetos recentes */}
         <div>
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-24 flex items-center justify-between">
             <h2 className="text-sm font-medium">Projetos atualizados recentemente</h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

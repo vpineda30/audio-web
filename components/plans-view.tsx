@@ -182,7 +182,7 @@ export function PlansView() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 mb-24">
       {/* Planos Disponíveis */}
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">

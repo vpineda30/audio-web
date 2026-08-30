@@ -217,7 +217,7 @@ export function ProjectsGrid({ projects }: { projects: Project[] }) {
       ) : (
         <>
           {filtered.length > 0 && (
-            <section className="flex flex-col gap-4 mt-4">
+            <section className="flex flex-col gap-4 mt-4 mb-24">
               <h2 className="text-sm font-medium">Meus projetos</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((p) => {
