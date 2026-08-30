@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { subscriptionWebhook } from '@/hooks/api/Subscription.webhook'
 import { userWebhook } from '@/hooks/api/User.webhook'
+import { WEB_URL } from '@/hooks/api/api'
 
 const plans: ReadonlyArray<{
   id: 'Free' | 'Pro'
@@ -96,8 +97,15 @@ export function PlansView() {
       setPendingPlan(normalizedPlan)
       setIsLoading(true)
 
+      const successUrl = `${WEB_URL}/plans?checkout=success`
+      const cancelUrl = `${WEB_URL}/plans?checkout=cancel`
+
       const response = await subscriptionWebhook.createCheckoutSession(
         normalizedPlan,
+        {
+          successUrl,
+          cancelUrl,
+        },
       ) as CheckoutResponse
 
       if (response?.url) {

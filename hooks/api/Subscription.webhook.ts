@@ -2,12 +2,18 @@ import { request } from "./api";
 
 export const subscriptionWebhook = {
   createCheckoutSession(
-    plan: string
+    plan: string,
+    options?: {
+      successUrl?: string;
+      cancelUrl?: string;
+    },
   ) {
     return request("/payment/create-checkout-session", {
       method: "POST",
       body: {
         plan,
+        ...(options?.successUrl ? { successUrl: options.successUrl } : {}),
+        ...(options?.cancelUrl ? { cancelUrl: options.cancelUrl } : {}),
       },
     });
   },
