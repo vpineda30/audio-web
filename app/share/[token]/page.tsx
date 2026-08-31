@@ -410,7 +410,6 @@ export default function SharedProjectPage() {
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-4">
-                    <span className="size-12 shrink-0 rounded-xl bg-muted" />
                     <div>
                         <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
                         <p className="mt-1 max-w-xl text-sm text-muted-foreground">{project.description || 'Sem descrição'}</p>
@@ -420,7 +419,7 @@ export default function SharedProjectPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="w-fit rounded-full border border-border bg-muted/60 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{project.permission}</span>
+                    <span className="w-fit rounded-full border border-border bg-muted/60 px-3 py-1 mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{project.permission}</span>
                     {canEdit && <UploadTrackDialog projectName={project.name} onUpload={uploadSharedTrack} />}
                 </div>
             </div>
