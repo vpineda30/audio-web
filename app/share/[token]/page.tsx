@@ -486,8 +486,7 @@ export default function SharedProjectPage() {
                     })}
                 </div>
             </div>
-
-            <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground"><ShieldCheck className="mr-2 inline size-4 text-emerald-500" />Acesso compartilhado pelo link público.</div>
+            
             <div className="flex justify-center">
                 {isAuthenticated ? null : (
                     <Link href="/login?redirect=%2Fdashboard" className="text-sm font-medium underline-offset-4 hover:underline">
