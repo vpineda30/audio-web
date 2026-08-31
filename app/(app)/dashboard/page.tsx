@@ -70,13 +70,12 @@ export default function DashboardPage() {
           const apiProject = project as Project & { createdAt?: string; updatedAt?: string }
 
           return {
-          ...project,
-          description: project.description ?? '',
-          color: project.color ?? '#EF4444',
-          size: project.size ?? 0,
-          createAt: apiProject.createdAt ?? project.createAt,
-          updateAt: apiProject.updatedAt ?? project.updateAt,
-          tracks: [],
+            ...project,
+            description: project.description ?? '',
+            size: project.size ?? 0,
+            createAt: apiProject.createdAt ?? project.createAt,
+            updateAt: apiProject.updatedAt ?? project.updateAt,
+            tracks: [],
           }
         })
 
@@ -250,7 +249,7 @@ export default function DashboardPage() {
                     {formatTime(t.duration)}
                   </span>
                 </li>
-               )) : (<p className="text-sm text-muted-foreground">Sem tracks recentes</p>)}
+              )) : (<p className="text-sm text-muted-foreground">Sem tracks recentes</p>)}
             </ul>
           </Card>
         </div>
@@ -272,11 +271,7 @@ export default function DashboardPage() {
                 <Link key={p.id} href={`/projects/${p.id}`}>
                   <Card className="group h-full gap-0 p-5 transition-colors hover:border-foreground/20">
                     <div className="flex items-start justify-between">
-                      <span
-                        className="size-8 rounded-md"
-                        style={{ backgroundColor: p.color || '#EF4444' }}
-                        aria-hidden
-                      />
+                      <span className="size-8 rounded-md bg-muted" aria-hidden />
                       <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
 

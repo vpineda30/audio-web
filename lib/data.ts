@@ -79,7 +79,6 @@ export interface Project {
   duration?: number | null
   tracks: Track[]
   size: number
-  color: string;
   createAt?: string | null
   updateAt?: string | null
   createdAt?: string | null

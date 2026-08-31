@@ -14,7 +14,6 @@ export const projectWebhook = {
             description?: string;
             duration?: number;
             size?: number;
-            color?: string;
         }
     ) {
         return request<Project>("/projects/create-project", {
@@ -40,7 +39,6 @@ export const projectWebhook = {
                 description?: string;
                 duration?: number;
                 size?: number;
-                color?: string
             }
     ) {
         return request<Partial<Project>>(`/projects/update-project/${encodeURIComponent(projectId)}`, {
@@ -98,7 +96,6 @@ export const projectWebhook = {
     updateSharedProject(token: string, payload: {
         name?: string;
         description?: string;
-        color?: string;
     }) {
         return request<SharedProjectResponse>(`/share/${encodeURIComponent(token)}/project`, {
             method: "PATCH",

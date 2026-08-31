@@ -40,7 +40,6 @@ type SharedProject = {
     id: string
     name: string
     description?: string | null
-    color?: string | null
     updateAt?: string | null
     tracks: SharedTrack[]
     permission: 'READ' | 'DOWNLOAD' | 'EDIT'
@@ -411,7 +410,7 @@ export default function SharedProjectPage() {
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-4">
-                    <span className="size-12 shrink-0 rounded-xl" style={{ backgroundColor: project.color ?? '#EF4444' }} />
+                    <span className="size-12 shrink-0 rounded-xl bg-muted" />
                     <div>
                         <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
                         <p className="mt-1 max-w-xl text-sm text-muted-foreground">{project.description || 'Sem descrição'}</p>

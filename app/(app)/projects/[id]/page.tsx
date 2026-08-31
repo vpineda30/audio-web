@@ -23,7 +23,6 @@ import { UploadTrackDialog } from '@/components/upload-track-dialog'
 import { projectWebhook } from '@/hooks/api/Projects.webhook'
 import { trackWebhook, type TrackVersionRecord } from '@/hooks/api/Tracks.webhook'
 import { formatDate, formatTime, formatTrackKey, normalizeTrackKey, trackKeyOptions, type Project, type Track } from '@/lib/data'
-import { ColorPickerPopover } from '@/components/change-project-color'
 import { motion } from 'framer-motion'
 
 export default function ProjectDetailPage() {
@@ -153,7 +152,6 @@ export default function ProjectDetailPage() {
           id: selected.id,
           name: selected.name,
           description: selected.description ?? 'Sem Descrição',
-          color: selected.color ?? '#EF4444',
           createAt: selected.createdAt ?? selected.createAt ?? '',
           updateAt: selected.updatedAt ?? selected.updateAt ?? '',
           size: selected.size ?? 0,
@@ -216,29 +214,6 @@ export default function ProjectDetailPage() {
       })
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleUpdateProjectColor(projectId: string, color: string) {
-    if (!project) return
-
-    const userId = localStorage.getItem('userId')
-
-    if (!userId) return
-
-    const previousColor = project.color
-    setProject((prev) => (prev ? { ...prev, color } : prev))
-
-    try {
-      await projectWebhook.update(projectId, {
-        color,
-      })
-      toast.success('Cor do projeto atualizada!')
-    } catch (error) {
-      setProject((prev) => (prev ? { ...prev, color: previousColor } : prev))
-      toast.error('Não foi possível atualizar a cor do projeto', {
-        description: error instanceof Error ? error.message : 'Tente novamente.',
-      })
     }
   }
 
@@ -632,12 +607,6 @@ export default function ProjectDetailPage() {
 
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-            <ColorPickerPopover
-              selectedColor={project.color}
-              onSelectColor={(newColor) => {
-                handleUpdateProjectColor(project.id, newColor)
-              }}
-            />
             <div>
               <h1 className="break-words text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{project.name}</h1>
               <p className="mt-1 max-w-xl break-words text-sm text-muted-foreground">{project.description}</p>

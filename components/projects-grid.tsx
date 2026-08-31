@@ -15,7 +15,6 @@ type ApiProject = {
   description?: string | null
   duration?: number | null
   size?: number | null
-  color?: string | null
   createdAt?: string
   updatedAt?: string
   tracks?: Array<{
@@ -96,7 +95,6 @@ export function ProjectsGrid({ projects }: { projects: Project[] }) {
           name: project.name,
           description: project.description ?? 'Sem Descrição',
           duration: project.duration,
-          color: project.color || '#EF4444',
           size: project.size || 0,
           createAt: project.createdAt ?? '',
           updateAt: project.updatedAt ?? '',
@@ -122,7 +120,7 @@ export function ProjectsGrid({ projects }: { projects: Project[] }) {
             }
           }),
         )
-        
+
         const sharedCards = storedSharedProjects.flatMap((stored) => {
           if (!stored.token) return []
           const link = linksByProject.flat().find((item) => item.token === stored.token)
@@ -227,7 +225,7 @@ export function ProjectsGrid({ projects }: { projects: Project[] }) {
                     <Link key={p.id} href={`/projects/${p.id}`}>
                       <Card className="group h-full gap-0 p-5 transition-colors hover:border-foreground/20">
                         <div className="flex items-start justify-between">
-                          <span className="size-9 rounded-md" style={{ backgroundColor: p.color }} aria-hidden />
+                          <span className="size-9 rounded-md bg-muted" aria-hidden />
                           <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                         </div>
                         <h3 className="mt-4 font-medium">{p.name}</h3>
