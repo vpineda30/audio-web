@@ -414,7 +414,7 @@ export default function SharedProjectPage() {
                         <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
                         <p className="mt-1 max-w-xl text-sm text-muted-foreground">{project.description || 'Sem descrição'}</p>
                         <p className="mt-2 font-mono text-xs text-muted-foreground">
-                            {expirationLabel ? `Link expira em ${expirationLabel}` : `Compartilhado${(project.updatedAt ?? project.updateAt) ? ` · Atualizado em ${formatDate(project.updatedAt ?? project.updateAt)}` : ''}`}
+                            {expirationLabel ? `Link expira em ${expirationLabel}` : `${(project.updatedAt ?? project.updateAt) ? `Atualizado em ${formatDate(project.updatedAt ?? project.updateAt)}` : ''}`}
                         </p>
                     </div>
                 </div>
