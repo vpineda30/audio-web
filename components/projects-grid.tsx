@@ -43,6 +43,13 @@ type SharedProjectCard = {
   permission: SharePermission
 }
 
+function isShareLinkActive(expiresAt?: string | null) {
+  if (!expiresAt) return true
+
+  const expirationTime = new Date(expiresAt).getTime()
+  return Number.isFinite(expirationTime) && expirationTime > Date.now()
+}
+
 const permissionLabels: Record<SharePermission, string> = {
   READ: 'Leitura',
   DOWNLOAD: 'Download',
@@ -103,38 +110,28 @@ export function ProjectsGrid({ projects }: { projects: Project[] }) {
 
         setProjectList(mappedProjects.length > 0 ? mappedProjects : projects)
 
-        const storedSharedProjects = JSON.parse(localStorage.getItem('sharedProjects') ?? '[]') as Array<{
-          token?: string
-          name?: string
-          projectId?: string
-          shareLinkId?: string
-          expiresAt?: string | null
-        }>
         const ownedProjects = mappedProjects.length > 0 ? mappedProjects : projects
         const linksByProject = await Promise.all(
           ownedProjects.map(async (project) => {
             try {
-              return await projectWebhook.findShareLinks(project.id)
+              const links = await projectWebhook.findShareLinks(project.id)
+              return links
+                .filter((link) => link.id && link.token && link.projectId && isShareLinkActive(link.expiresAt))
+                .map((link) => ({ link, project }))
             } catch {
               return []
             }
           }),
         )
 
-        const sharedCards = storedSharedProjects.flatMap((stored) => {
-          if (!stored.token) return []
-          const link = linksByProject.flat().find((item) => item.token === stored.token)
-          if (!link?.id || !link.projectId) return []
-
-          return [{
-            token: stored.token,
-            name: stored.name ?? 'Projeto compartilhado',
-            projectId: link.projectId,
-            shareLinkId: link.id,
-            expiresAt: link.expiresAt,
-            permission: link.permission,
-          }]
-        })
+        const sharedCards = linksByProject.flat().map(({ link, project }) => ({
+          token: link.token!,
+          name: project.name,
+          projectId: link.projectId!,
+          shareLinkId: link.id,
+          expiresAt: link.expiresAt,
+          permission: link.permission,
+        }))
         setSharedProjectList(sharedCards)
       } catch (error) {
         if (!active) return

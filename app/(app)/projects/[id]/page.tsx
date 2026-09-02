@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Check, ChevronDown, Clock, Filter, HardDrive, Music, Pencil, SlidersHorizontal, Trash2, UploadCloud } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Clock, Filter, HardDrive, Menu, Music, Pencil, SlidersHorizontal, Trash2, UploadCloud } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -18,6 +18,12 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { TrackPlayer } from '@/components/track-player'
 import { UploadTrackDialog } from '@/components/upload-track-dialog'
 import { projectWebhook } from '@/hooks/api/Projects.webhook'
@@ -644,9 +650,30 @@ export default function ProjectDetailPage() {
         </Button>
 
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-            <div>
-              <h1 className="break-words text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{project.name}</h1>
+          <div className="flex w-full min-w-0 flex-1 items-start gap-3 self-stretch sm:w-auto sm:gap-4">
+            <div className="w-full">
+              <div className="flex w-full items-center gap-4">
+                <h1 className="break-words text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{project.name}</h1>
+                <DropdownMenu>
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="ml-auto size-8 shrink-0 text-muted-foreground sm:hidden" aria-label="Abrir opções" title="Opções" />}>
+                    <Menu className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={openMetadataDialog}>
+                      <SlidersHorizontal className="size-4" />
+                      Metadados
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                      <Pencil className="size-4" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                      <Trash2 className="size-4" />
+                      Deletar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
               <p className="mt-1 max-w-xl break-words text-sm text-muted-foreground">{project.description}</p>
               <p className="mt-2 font-mono text-xs text-muted-foreground">
                 Atualizado em {formatDate(project.updateAt ?? project.createAt)}
@@ -654,13 +681,13 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-            <Button variant="outline" size="default" onClick={openMetadataDialog}>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+            <Button variant="outline" size="default" className="hidden sm:inline-flex" onClick={openMetadataDialog}>
               <SlidersHorizontal className="size-4" />
               Metadados
             </Button>
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
-              <DialogTrigger render={<Button variant="outline" size="default" />}>
+              <DialogTrigger render={<Button variant="outline" size="default" className="hidden sm:inline-flex" />}>
                 <Pencil className="size-4" />
                 Editar
               </DialogTrigger>
@@ -738,8 +765,18 @@ export default function ProjectDetailPage() {
               </DialogContent>
             </Dialog>
 
+            <div className="col-span-1 sm:col-span-1">
+              <UploadTrackDialog
+                projectId={project.id}
+                projectName={project.name}
+                predefinedMetadatas={project.predefinedMetadatas}
+                onUploadSuccess={refreshTracks}
+                className="w-full sm:w-auto"
+              />
+            </div>
+
             <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-              <DialogTrigger render={<Button variant="outline" size="default" />}>
+              <DialogTrigger render={<Button variant="outline" size="default" className="w-full sm:w-auto" />}>
                 <UploadCloud className="size-4" />
                 Compartilhar
               </DialogTrigger>
@@ -813,7 +850,7 @@ export default function ProjectDetailPage() {
             </Dialog>
 
             <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <DialogTrigger render={<Button variant="destructive" size="default" />}>
+              <DialogTrigger render={<Button variant="destructive" size="default" className="hidden sm:inline-flex" />}>
                 <Trash2 className="size-4" />
                 Deletar
               </DialogTrigger>
@@ -834,13 +871,6 @@ export default function ProjectDetailPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-
-            <UploadTrackDialog
-              projectId={project.id}
-              projectName={project.name}
-              predefinedMetadatas={project.predefinedMetadatas}
-              onUploadSuccess={refreshTracks}
-            />
           </div>
         </div>
 
@@ -930,22 +960,22 @@ export default function ProjectDetailPage() {
             <div className="grid gap-4">
               {versionFile && (
                 <>
-              <div className="space-y-2">
-                <Label htmlFor="version-name">Nome da nova track</Label>
-                <Input id="version-name" value={versionName} onChange={(e) => setVersionName(e.target.value)} placeholder="v2" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="version-bpm">BPM</Label>
-                  <Input id="version-bpm" type="number" min="1" value={versionBpm} onChange={(e) => setVersionBpm(e.target.value)} placeholder="120" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="version-key">Key</Label>
-                  <select id="version-key" value={versionKey} onChange={(e) => setVersionKey(e.target.value)} className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent dark:bg-input/30 px-2.5 py-1 text-sm text-foreground transition-colors outline-none appearance-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
-                    {trackKeyOptions.map((option) => <option key={option.value} value={option.value} className="bg-input text-foreground">{option.label}</option>)}
-                  </select>
-                </div>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="version-name">Nome da nova track</Label>
+                    <Input id="version-name" value={versionName} onChange={(e) => setVersionName(e.target.value)} placeholder="v2" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="version-bpm">BPM</Label>
+                      <Input id="version-bpm" type="number" min="1" value={versionBpm} onChange={(e) => setVersionBpm(e.target.value)} placeholder="120" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="version-key">Key</Label>
+                      <select id="version-key" value={versionKey} onChange={(e) => setVersionKey(e.target.value)} className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent dark:bg-input/30 px-2.5 py-1 text-sm text-foreground transition-colors outline-none appearance-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
+                        {trackKeyOptions.map((option) => <option key={option.value} value={option.value} className="bg-input text-foreground">{option.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
                 </>
               )}
               <div className="space-y-2">

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { PageHeader } from '@/components/page-header'
-import { formatDate, formatTime, planLimits, Project, Track, User } from '@/lib/data'
+import { formatDate, formatTime, planLimits, Project, ProjectShareLink, Track, User } from '@/lib/data'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { userWebhook } from '@/hooks/api/User.webhook'
@@ -23,12 +23,22 @@ interface dashboardData {
 interface SharedDashboardProject {
   token: string
   name: string
+  projectId: string
+  permission: ProjectShareLink['permission']
+  expiresAt?: string | null
 }
 
 type DashboardTrack = Track & { projectId?: string; projectName: string }
 
 function normalizePlan(plan?: string | null): 'PRO' | 'FREE' {
   return String(plan ?? 'FREE').trim().toUpperCase().includes('PRO') ? 'PRO' : 'FREE'
+}
+
+function isShareLinkActive(expiresAt?: string | null) {
+  if (!expiresAt) return true
+
+  const expirationTime = new Date(expiresAt).getTime()
+  return Number.isFinite(expirationTime) && expirationTime > Date.now()
 }
 
 function mapTrack(track: TrackRecord): Track {
@@ -63,9 +73,6 @@ export default function DashboardPage() {
           trackWebhook.findByUser(),
         ]);
 
-        const storedSharedProjects = JSON.parse(localStorage.getItem('sharedProjects') ?? '[]') as SharedDashboardProject[]
-        setSharedProjects(storedSharedProjects)
-
         const projects = projectsResponse.map((project) => {
           const apiProject = project as Project & { createdAt?: string; updatedAt?: string }
 
@@ -78,6 +85,30 @@ export default function DashboardPage() {
             tracks: [],
           }
         })
+
+        const linksByProject = await Promise.all(projects.map(async (project) => {
+          try {
+            return await projectWebhook.findShareLinks(project.id)
+          } catch {
+            return []
+          }
+        }))
+
+        const activeSharedProjects = linksByProject
+          .flatMap((links, index) => links
+            .filter((link) => link.id && link.token && link.projectId && isShareLinkActive(link.expiresAt))
+            .map((link) => ({
+              token: link.token!,
+              name: projects[index].name,
+              projectId: link.projectId!,
+              permission: link.permission,
+              expiresAt: link.expiresAt,
+              createdAt: link.createdAt,
+            })))
+          .sort((first, second) => String(second.createdAt ?? '').localeCompare(String(first.createdAt ?? '')))
+          .map(({ createdAt: _createdAt, ...link }) => link)
+
+        setSharedProjects(activeSharedProjects)
 
         const tracks: DashboardTrack[] = tracksResponse.map((track) => ({
           ...mapTrack(track),

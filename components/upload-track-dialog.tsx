@@ -29,6 +29,7 @@ export function UploadTrackDialog({
   dialogTitle = 'Enviar faixa',
   dialogDescription = 'Formatos suportados: .mp3 e .wav.',
   successMessage = 'Faixa enviada',
+  className,
 }: {
   projectId?: string
   projectName: string
@@ -48,6 +49,7 @@ export function UploadTrackDialog({
   dialogTitle?: string
   dialogDescription?: string
   successMessage?: string
+  className?: string
 }) {
   const hasPredefinedMetadatas = Boolean(
     predefinedMetadatas?.key && predefinedMetadatas.bpm !== null && predefinedMetadatas.bpm !== undefined,
@@ -183,7 +185,7 @@ export function UploadTrackDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button className={className} />}>
         <UploadCloud className="size-4" />
         {triggerLabel}
       </DialogTrigger>
