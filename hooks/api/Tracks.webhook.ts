@@ -38,7 +38,8 @@ export interface CreateTrackPayload {
     bpm?: number;
     duration?: number;
     key?: string;
-    file: File;
+    file?: File;
+    files?: File[];
 }
 
 export interface UpdateTrackPayload {
@@ -101,9 +102,10 @@ export const trackWebhook = {
         appendFormData(formData, "duration", data.duration);
         appendFormData(formData, "key", data.key);
 
-        formData.append("file", data.file);
+        const files = data.files ?? (data.file ? [data.file] : []);
+        files.forEach((file) => formData.append("file", file));
 
-        return request<TrackRecord>("/tracks/create-track", {
+        return request<TrackRecord | TrackRecord[]>("/tracks/create-track", {
             method: "POST",
             body: formData,
         });

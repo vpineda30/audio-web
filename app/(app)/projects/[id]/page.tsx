@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Check, ChevronDown, Clock, Filter, HardDrive, Music, Pencil, Trash2, UploadCloud } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Clock, Filter, HardDrive, Music, Pencil, SlidersHorizontal, Trash2, UploadCloud } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -36,6 +36,10 @@ export default function ProjectDetailPage() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [metadataOpen, setMetadataOpen] = useState(false)
+  const [metadataSaving, setMetadataSaving] = useState(false)
+  const [metadataBpm, setMetadataBpm] = useState('')
+  const [metadataKey, setMetadataKey] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [sharePermission, setSharePermission] = useState<'READ' | 'DOWNLOAD' | 'EDIT'>('READ')
@@ -88,7 +92,7 @@ export default function ProjectDetailPage() {
 
         const fileSize = Number(latestVersion?.fileSize ?? track.fileSize ?? 0)
         const totalSizeMB = (track.versions ?? []).reduce(
-          (sum, version) => sum + Number(version.fileSize ?? 0) / (1024 * 1024),
+          (sum, version) => sum + Number(version.fileSize ?? 0) / 1_000_000,
           0,
         )
         const mimeType = latestVersion?.mimeType ?? track.mimeType ?? ''
@@ -98,7 +102,7 @@ export default function ProjectDetailPage() {
           name: latestVersion?.name ?? track.name,
           format: (mimeType.includes('wav') ? 'wav' : 'mp3') as Track['format'],
           duration: Number(latestVersion?.duration ?? track.duration ?? 0),
-          sizeMB: Number.isFinite(fileSize) ? fileSize / (1024 * 1024) : 0,
+          sizeMB: Number.isFinite(fileSize) ? fileSize / 1_000_000 : 0,
           totalSizeMB,
           bpm: latestVersion?.bpm ?? track.bpm ?? 0,
           key: formatTrackKey(latestVersion?.key ?? track.key),
@@ -152,6 +156,7 @@ export default function ProjectDetailPage() {
           id: selected.id,
           name: selected.name,
           description: selected.description ?? 'Sem Descrição',
+          predefinedMetadatas: selected.predefinedMetadatas,
           createAt: selected.createdAt ?? selected.createAt ?? '',
           updateAt: selected.updatedAt ?? selected.updateAt ?? '',
           size: selected.size ?? 0,
@@ -214,6 +219,43 @@ export default function ProjectDetailPage() {
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  function openMetadataDialog() {
+    setMetadataBpm(project?.predefinedMetadatas?.bpm?.toString() ?? '')
+    setMetadataKey(project?.predefinedMetadatas?.key ?? '')
+    setMetadataOpen(true)
+  }
+
+  async function handleMetadataSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!project) return
+
+    const bpm = metadataBpm.trim() ? Number(metadataBpm) : null
+    if (bpm !== null && (!Number.isFinite(bpm) || bpm <= 0)) {
+      toast.error('BPM deve ser um número válido')
+      return
+    }
+
+    try {
+      setMetadataSaving(true)
+      await projectWebhook.setPredefinedMetadatas(project.id, {
+        bpm,
+        key: metadataKey || null,
+      })
+      setProject((current) => current ? {
+        ...current,
+        predefinedMetadatas: { bpm, key: metadataKey || null },
+      } : current)
+      setMetadataOpen(false)
+      toast.success('Predefinições atualizadas')
+    } catch (error) {
+      toast.error('Não foi possível atualizar as predefinições', {
+        description: error instanceof Error ? error.message : 'Tente novamente.',
+      })
+    } finally {
+      setMetadataSaving(false)
     }
   }
 
@@ -492,10 +534,6 @@ export default function ProjectDetailPage() {
   async function handleDelete() {
     if (!project) return
 
-    const userId = localStorage.getItem('userId')
-
-    if (!userId) return
-
     try {
       setDeleting(true)
 
@@ -617,6 +655,10 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <Button variant="outline" size="default" onClick={openMetadataDialog}>
+              <SlidersHorizontal className="size-4" />
+              Metadados
+            </Button>
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
               <DialogTrigger render={<Button variant="outline" size="default" />}>
                 <Pencil className="size-4" />
@@ -639,6 +681,57 @@ export default function ProjectDetailPage() {
                   <DialogFooter>
                     <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
                       {saving ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={metadataOpen} onOpenChange={setMetadataOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Metadados predefinidos</DialogTitle>
+                  <DialogDescription>
+                    Novos uploads herdarão estes valores quando não informados.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleMetadataSave} className="flex flex-col gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="project-metadata-bpm">BPM</Label>
+                    <Input
+                      id="project-metadata-bpm"
+                      type="number"
+                      min="1"
+                      placeholder="Opcional"
+                      value={metadataBpm}
+                      onChange={(e) => setMetadataBpm(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="project-metadata-key">Tom (Key)</Label>
+                    <select
+                      id="project-metadata-key"
+                      value={metadataKey}
+                      onChange={(e) => setMetadataKey(e.target.value)}
+                      className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent dark:bg-input/30 px-2.5 py-1 text-sm text-foreground transition-colors outline-none appearance-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <option value="">Sem tom predefinido</option>
+                      {trackKeyOptions.map((option) => (
+                        <option key={option.value} value={option.value} className="bg-input text-foreground">
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => {
+                      setMetadataBpm('')
+                      setMetadataKey('')
+                    }}>
+                      Limpar
+                    </Button>
+                    <Button type="submit" disabled={metadataSaving}>
+                      {metadataSaving ? 'Salvando...' : 'Salvar'}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -745,6 +838,7 @@ export default function ProjectDetailPage() {
             <UploadTrackDialog
               projectId={project.id}
               projectName={project.name}
+              predefinedMetadatas={project.predefinedMetadatas}
               onUploadSuccess={refreshTracks}
             />
           </div>

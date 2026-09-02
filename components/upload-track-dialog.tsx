@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { UploadCloud } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { trackWebhook } from '@/hooks/api/Tracks.webhook'
+import { userWebhook } from '@/hooks/api/User.webhook'
 import { formatTime, normalizeTrackKey, trackKeyOptions } from '@/lib/data'
 
 export function UploadTrackDialog({
@@ -23,6 +24,7 @@ export function UploadTrackDialog({
   projectName,
   onUploadSuccess,
   onUpload,
+  predefinedMetadatas,
   triggerLabel = 'Enviar faixa',
   dialogTitle = 'Enviar faixa',
   dialogDescription = 'Formatos suportados: .mp3 e .wav.',
@@ -30,6 +32,10 @@ export function UploadTrackDialog({
 }: {
   projectId?: string
   projectName: string
+  predefinedMetadatas?: {
+    key?: string | null
+    bpm?: number | null
+  } | null
   onUploadSuccess?: () => void
   onUpload?: (data: {
     name: string
@@ -43,16 +49,31 @@ export function UploadTrackDialog({
   dialogDescription?: string
   successMessage?: string
 }) {
+  const hasPredefinedMetadatas = Boolean(
+    predefinedMetadatas?.key && predefinedMetadatas.bpm !== null && predefinedMetadatas.bpm !== undefined,
+  )
   const [open, setOpen] = useState(false)
-  const [fileName, setFileName] = useState<string | null>(null)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [trackName, setTrackName] = useState('')
-  const [bpm, setBpm] = useState('')
-  const [key, setKey] = useState<string>(trackKeyOptions[0].value)
+  const [bpm, setBpm] = useState(predefinedMetadatas?.bpm?.toString() ?? '')
+  const [key, setKey] = useState(predefinedMetadatas?.key ?? '')
   const [duration, setDuration] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
+
+  useEffect(() => {
+    setBpm(predefinedMetadatas?.bpm?.toString() ?? '')
+    setKey(predefinedMetadatas?.key ?? '')
+  }, [predefinedMetadatas?.bpm, predefinedMetadatas?.key])
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setBpm(predefinedMetadatas?.bpm?.toString() ?? '')
+      setKey(predefinedMetadatas?.key ?? '')
+    }
+    setOpen(nextOpen)
+  }
 
   function extractDuration(file: File) {
     const url = URL.createObjectURL(file)
@@ -73,23 +94,26 @@ export function UploadTrackDialog({
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault()
+    const isBatchUpload = selectedFiles.length > 1
+    const hasPredefinedBpm = predefinedMetadatas?.bpm !== null && predefinedMetadatas?.bpm !== undefined
+    const hasPredefinedKey = Boolean(predefinedMetadatas?.key)
 
-    if (!selectedFile) {
+    if (selectedFiles.length === 0) {
       toast.error('Selecione um arquivo para enviar.')
       return
     }
 
-    if (!trackName.trim()) {
+    if (!isBatchUpload && !trackName.trim()) {
       toast.error('Nome da faixa é obrigatório')
       return
     }
 
-    if (!bpm || isNaN(Number(bpm))) {
+    if (!hasPredefinedBpm && (!bpm.trim() || !Number.isFinite(Number(bpm)) || Number(bpm) <= 0)) {
       toast.error('BPM deve ser um número válido')
       return
     }
 
-    if (!key.trim()) {
+    if (!hasPredefinedKey && !key.trim()) {
       toast.error('Tom (Key) é obrigatório')
       return
     }
@@ -99,7 +123,24 @@ export function UploadTrackDialog({
     try {
       setUploading(true)
 
+      if (projectId) {
+        const response = await userWebhook.me()
+        const storageUsed = Number(response.user.storageUsed ?? 0)
+        const storageLimit = String(response.user.subscriptionPlan ?? '').toUpperCase().includes('PRO')
+          ? 10_000_000_000
+          : 500_000_000
+        const selectedSize = selectedFiles.reduce((total, file) => total + file.size, 0)
+
+        if (storageUsed + selectedSize > storageLimit) {
+          toast.error('Limite de armazenamento excedido', {
+            description: 'Remova alguns arquivos ou atualize seu plano para continuar.',
+          })
+          return
+        }
+      }
+
       if (onUpload) {
+        const selectedFile = selectedFiles[0]
         const uploadResult = await onUpload({
           name: trackName.trim(),
           bpm: Number(bpm),
@@ -112,11 +153,11 @@ export function UploadTrackDialog({
         await trackWebhook.create({
           projectId: projectId!,
           name: trackName,
-          bpm: Number(bpm),
-          key: normalizeTrackKey(key),
+          ...(bpm.trim() ? { bpm: Number(bpm) } : {}),
+          ...(key.trim() ? { key: normalizeTrackKey(key) } : {}),
           duration: Math.round(duration),
           versionName: trackName.trim(),
-          file: selectedFile,
+          files: selectedFiles,
         })
       }
 
@@ -124,11 +165,10 @@ export function UploadTrackDialog({
         description: `${successMessage} com sucesso.`,
       })
 
-      setSelectedFile(null)
-      setFileName(null)
+      setSelectedFiles([])
       setTrackName('')
       setBpm('')
-      setKey(trackKeyOptions[0].value)
+      setKey('')
       setDuration(0)
       setOpen(false)
       onUploadSuccess?.()
@@ -142,7 +182,7 @@ export function UploadTrackDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button />}>
         <UploadCloud className="size-4" />
         {triggerLabel}
@@ -160,7 +200,9 @@ export function UploadTrackDialog({
           >
             <UploadCloud className="size-6 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {fileName ?? 'Clique para selecionar um arquivo'}
+              {selectedFiles.length > 0
+                ? `${selectedFiles.length} arquivo${selectedFiles.length > 1 ? 's' : ''} selecionado${selectedFiles.length > 1 ? 's' : ''}`
+                : 'Clique para selecionar um arquivo'}
             </span>
             <span className="font-mono text-xs text-muted-foreground">MP3 ou WAV</span>
             {duration > 0 && (
@@ -173,21 +215,29 @@ export function UploadTrackDialog({
             ref={inputRef}
             type="file"
             accept=".mp3,.wav,audio/*"
+            multiple={Boolean(projectId)}
             className="hidden"
             onChange={(e) => {
-              const file = e.target.files?.[0] ?? null
-              setSelectedFile(file)
-              setFileName(file?.name ?? null)
+              const files = Array.from(e.target.files ?? [])
+              if (files.length > 20) {
+                toast.error('Você pode selecionar no máximo 20 arquivos.')
+                e.target.value = ''
+                return
+              }
+
+              setSelectedFiles(files)
+              const file = files[0] ?? null
               if (file) {
                 setTrackName(file.name.replace(/\.[^/.]+$/, ''))
                 extractDuration(file)
               }
+              e.target.value = ''
             }}
           />
 
-          {selectedFile && (
+          {selectedFiles.length > 0 && (
             <>
-              <div className="space-y-2">
+              {selectedFiles.length === 1 && <div className="space-y-2">
                 <Label htmlFor="track-name">Nome da faixa</Label>
                 <Input
                   id="track-name"
@@ -195,7 +245,7 @@ export function UploadTrackDialog({
                   onChange={(e) => setTrackName(e.target.value)}
                   placeholder="Ex: My Song"
                 />
-              </div>
+              </div>}
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -217,6 +267,7 @@ export function UploadTrackDialog({
                     onChange={(e) => setKey(e.target.value)}
                     className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent dark:bg-input/30 px-2.5 py-1 text-sm text-foreground transition-colors outline-none appearance-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-50"
                   >
+                    {!predefinedMetadatas?.key && <option value="">Selecione o tom</option>}
                     {trackKeyOptions.map((option) => (
                       <option
                         key={option.value}
@@ -233,7 +284,12 @@ export function UploadTrackDialog({
           )}
 
           <DialogFooter>
-            <Button type="submit" className="w-full sm:w-auto" disabled={uploading || !selectedFile}>
+            {selectedFiles.length > 1 && uploading && (
+              <p className="w-full text-center text-xs text-muted-foreground sm:text-left">
+                Enviando suas faixas, isso pode demorar alguns minutos.
+              </p>
+            )}
+            <Button type="submit" className="w-full sm:w-auto" disabled={uploading || selectedFiles.length === 0}>
               {uploading ? 'Enviando...' : 'Enviar'}
             </Button>
           </DialogFooter>

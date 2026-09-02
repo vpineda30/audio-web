@@ -117,7 +117,7 @@ export default function DashboardPage() {
   const rawStorageUsed = Number(dashboard?.user.storageUsed ?? 0)
   const usedStorageMB = Number.isFinite(rawStorageUsed) ? rawStorageUsed / 1_000_000 : 0
   const storageValue = plan === 'PRO'
-    ? Number((usedStorageMB / 1024).toFixed(2))
+    ? Number((usedStorageMB / 1000).toFixed(2))
     : Number(Math.max(usedStorageMB, 0).toFixed(2))
   const storageUnit = plan === 'PRO' ? 'GB' : 'MB'
   const storageLimit = Number(limit.storageSize ?? 0)
@@ -126,7 +126,7 @@ export default function DashboardPage() {
     : 0
   const recentTracks = [...(dashboard?.tracks ?? [])]
     .sort((a, b) => +new Date(b.addedAt) - +new Date(a.addedAt))
-    .slice(0, 5)
+    .slice(0, 4)
 
   const stats = [
     {

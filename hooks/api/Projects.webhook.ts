@@ -47,6 +47,22 @@ export const projectWebhook = {
         });
     },
 
+    setPredefinedMetadatas(projectId: string, data: {
+        key?: string | null;
+        bpm?: number | null;
+    }) {
+        return request<{ message: string }>(`/projects/${encodeURIComponent(projectId)}/predefined-metadatas`, {
+            method: "PUT",
+            body: data,
+        });
+    },
+
+    inheritPredefinedMetadatas(projectId: string) {
+        return request<{ message: string }>(`/projects/${encodeURIComponent(projectId)}/inherit-predefined-metadatas`, {
+            method: "POST",
+        });
+    },
+
     delete(projectId: string) {
         return request(`/projects/delete-project/${encodeURIComponent(projectId)}`, {
             method: "DELETE",

@@ -76,6 +76,10 @@ export interface Project {
   id: string;
   name: string;
   description: string;
+  predefinedMetadatas?: {
+    key?: string | null;
+    bpm?: number | null;
+  } | null;
   duration?: number | null
   tracks: Track[]
   size: number
@@ -147,7 +151,7 @@ export function formatFileSize(sizeMB: number) {
   if (sizeMB < 1024) {
     return `${sizeMB.toFixed(2)} MB`
   } else {
-    const sizeGB = sizeMB / 1024
+    const sizeGB = sizeMB / 1000
     return `${sizeGB.toFixed(2)} GB`
   }
 }

@@ -59,7 +59,7 @@ function normalizeTrack(track: SharedTrack) {
         duration: Number(version?.duration ?? track.duration ?? 0),
         bpm: Number(version?.bpm ?? track.bpm ?? 0),
         key: version?.key ?? track.key ?? '—',
-        sizeMB: totalFileSize / (1024 * 1024),
+        sizeMB: totalFileSize / 1_000_000,
     }
 }
 

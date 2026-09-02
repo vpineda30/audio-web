@@ -17,12 +17,15 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { trackKeyOptions } from '@/lib/data'
 
 export function NewProjectDialog() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [predefinedBpm, setPredefinedBpm] = useState('')
+  const [predefinedKey, setPredefinedKey] = useState('')
   const [creating, setCreating] = useState(false)
 
   async function handleCreate(e: React.FormEvent) {
@@ -33,6 +36,13 @@ export function NewProjectDialog() {
     const trimmedName = name.trim()
 
     if (!trimmedName) return
+
+    const bpm = predefinedBpm.trim() ? Number(predefinedBpm) : undefined
+
+    if (bpm !== undefined && (!Number.isFinite(bpm) || bpm <= 0)) {
+      toast.error('BPM deve ser um número válido')
+      return
+    }
 
     const userId = localStorage.getItem('userId')
 
@@ -51,18 +61,31 @@ export function NewProjectDialog() {
         description: description.trim() || undefined,
       })
 
+      const all = await projectWebhook.findAll()
+      const created = all.find((project) => project.name === trimmedName)
+
+      if ((bpm !== undefined || predefinedKey) && !created?.id) {
+        throw new Error('Não foi possível identificar o projeto criado para salvar a predefinição.')
+      }
+
+      if (created?.id && (bpm !== undefined || predefinedKey)) {
+        await projectWebhook.setPredefinedMetadatas(created.id, {
+          bpm,
+          key: predefinedKey || undefined,
+        })
+      }
+
       toast.success('Projeto criado', {
         description: `"${trimmedName}" foi adicionado à sua conta.`,
       })
 
       setName('')
       setDescription('')
+      setPredefinedBpm('')
+      setPredefinedKey('')
       setOpen(false)
 
       try {
-        const all = await projectWebhook.findAll()
-        const created = all.find((p) => p.name === trimmedName)
-
         router.push(
           created?.id
             ? `/projects/${created.id}`
@@ -111,6 +134,39 @@ export function NewProjectDialog() {
               placeholder="Breve descrição do projeto"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <Label className='mb-4 mt-4' htmlFor="project-predefined-key">Predefinições de metadados (campos opcionais)</Label>
+            <Label htmlFor="project-predefined-key">Tom predefinido</Label>
+            <select
+              id="project-predefined-key"
+              value={predefinedKey}
+              onChange={(e) => setPredefinedKey(e.target.value)}
+              className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent dark:bg-input/30 px-2.5 py-1 text-sm text-foreground transition-colors outline-none appearance-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-50"
+            >
+              <option value="">Sem tom predefinido</option>
+              {trackKeyOptions.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                  className="bg-input text-foreground"
+                >
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label className='mb-2' htmlFor="project-predefined-bpm">BPM predefinido</Label>
+            <Input
+              id="project-predefined-bpm"
+              type="number"
+              min="1"
+              placeholder="Ex: 120"
+              value={predefinedBpm}
+              onChange={(e) => setPredefinedBpm(e.target.value)}
             />
           </div>
           <DialogFooter>
