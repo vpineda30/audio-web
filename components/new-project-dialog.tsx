@@ -151,41 +151,44 @@ export function NewProjectDialog() {
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          
-          <div className="flex flex-col gap-2">
-            <Label className='mb-4 mt-4' htmlFor="project-predefined-key">Predefinições de metadados (recurso Pro)</Label>
-            <Label htmlFor="project-predefined-key">Tom predefinido</Label>
-            <select
-              id="project-predefined-key"
-              value={predefinedKey}
-              onChange={(e) => setPredefinedKey(e.target.value)}
-              disabled={!isPro}
-              className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent dark:bg-input/30 px-2.5 py-1 text-sm text-foreground transition-colors outline-none appearance-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-50"
-            >
-              <option value="">Sem tom predefinido</option>
-              {trackKeyOptions.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                  className="bg-input text-foreground"
+
+          {isPro && (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label className='mb-4 mt-4' htmlFor="project-predefined-key">Predefinições de metadados (recurso Pro)</Label>
+                <Label htmlFor="project-predefined-key">Tom predefinido</Label>
+                <select
+                  id="project-predefined-key"
+                  value={predefinedKey}
+                  onChange={(e) => setPredefinedKey(e.target.value)}
+                  disabled={!isPro}
+                  className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent dark:bg-input/30 px-2.5 py-1 text-sm text-foreground transition-colors outline-none appearance-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-50"
                 >
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label className='mb-2' htmlFor="project-predefined-bpm">BPM predefinido</Label>
-            <Input
-              id="project-predefined-bpm"
-              type="number"
-              min="1"
-              placeholder="Ex: 120"
-              value={predefinedBpm}
-              onChange={(e) => setPredefinedBpm(e.target.value)}
-              disabled={!isPro}
-            />
-          </div>
+                  <option value="">Sem tom predefinido</option>
+                  {trackKeyOptions.map((option) => (
+                    <option
+                      key={option.value}
+                      value={option.value}
+                      className="bg-input text-foreground"
+                    >
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div><div className="flex flex-col gap-2">
+                <Label className='mb-2' htmlFor="project-predefined-bpm">BPM predefinido</Label>
+                <Input
+                  id="project-predefined-bpm"
+                  type="number"
+                  min="1"
+                  placeholder="Ex: 120"
+                  value={predefinedBpm}
+                  onChange={(e) => setPredefinedBpm(e.target.value)}
+                  disabled={!isPro} />
+              </div>
+            </>
+          )}
+
           <DialogFooter>
             <Button type="submit" className="w-full sm:w-auto" disabled={creating}>
               {creating ? 'Criando...' : 'Criar projeto'}
