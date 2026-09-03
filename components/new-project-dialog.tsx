@@ -48,7 +48,8 @@ export function NewProjectDialog() {
 
     if (!trimmedName) return
 
-    const bpm = predefinedBpm.trim() ? Number(predefinedBpm) : undefined
+    const bpm = isPro && predefinedBpm.trim() ? Number(predefinedBpm) : undefined
+    const key = isPro ? predefinedKey : ''
 
     if (bpm !== undefined && (!Number.isFinite(bpm) || bpm <= 0)) {
       toast.error('BPM deve ser um número válido')
@@ -75,14 +76,14 @@ export function NewProjectDialog() {
       const all = await projectWebhook.findAll()
       const created = all.find((project) => project.name === trimmedName)
 
-      if ((bpm !== undefined || predefinedKey) && !created?.id) {
+      if ((bpm !== undefined || key) && !created?.id) {
         throw new Error('Não foi possível identificar o projeto criado para salvar a predefinição.')
       }
 
-      if (created?.id && (bpm !== undefined || predefinedKey)) {
+      if (created?.id && (bpm !== undefined || key)) {
         await projectWebhook.setPredefinedMetadatas(created.id, {
           bpm,
-          key: predefinedKey || undefined,
+          key: key || undefined,
         })
       }
 
@@ -131,7 +132,6 @@ export function NewProjectDialog() {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
-          {isPro && <>
           <div className="flex flex-col gap-2">
             <Label htmlFor="project-name">Nome do projeto</Label>
             <Input
@@ -186,7 +186,6 @@ export function NewProjectDialog() {
               disabled={!isPro}
             />
           </div>
-          </>}
           <DialogFooter>
             <Button type="submit" className="w-full sm:w-auto" disabled={creating}>
               {creating ? 'Criando...' : 'Criar projeto'}
