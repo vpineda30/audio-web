@@ -108,7 +108,7 @@ export interface User {
   updateAt: string
 }
 
-type Plan = "FREE" | "PRO";
+export type Plan = "FREE" | "PRO";
 
 export const planLimits: Record<Plan, {
   storageSize?: number;
@@ -123,6 +123,12 @@ export const planLimits: Record<Plan, {
     projects: Infinity,
   },
 };
+
+export const proPlanFeatures = [
+  'Links de compartilhamento com permissão de edição',
+  'Metadados predefinidos por projeto',
+  'Aplicação de metadados predefinidos às faixas existentes',
+] as const
 
 const audio = (n: number) => `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-${n}.mp3`
 

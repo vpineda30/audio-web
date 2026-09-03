@@ -28,6 +28,7 @@ import { TrackPlayer } from '@/components/track-player'
 import { UploadTrackDialog } from '@/components/upload-track-dialog'
 import { projectWebhook } from '@/hooks/api/Projects.webhook'
 import { trackWebhook, type TrackVersionRecord } from '@/hooks/api/Tracks.webhook'
+import { userWebhook } from '@/hooks/api/User.webhook'
 import { formatDate, formatTime, formatTrackKey, normalizeTrackKey, trackKeyOptions, type Project, type Track } from '@/lib/data'
 import { motion } from 'framer-motion'
 
@@ -44,6 +45,7 @@ export default function ProjectDetailPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [metadataSaving, setMetadataSaving] = useState(false)
+  const [metadataInheriting, setMetadataInheriting] = useState(false)
   const [metadataBpm, setMetadataBpm] = useState('')
   const [metadataKey, setMetadataKey] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -80,6 +82,7 @@ export default function ProjectDetailPage() {
   const [versionSaving, setVersionSaving] = useState(false)
   const [versionToDelete, setVersionToDelete] = useState<TrackVersionRecord | null>(null)
   const versionFileRef = useRef<HTMLInputElement>(null)
+  const [isPro, setIsPro] = useState(false)
 
   async function fetchProjectTracks(projectId: string) {
     const trackList = await trackWebhook.findByProject(projectId)
@@ -130,6 +133,8 @@ export default function ProjectDetailPage() {
       }
 
       try {
+        const userResponse = await userWebhook.me()
+        setIsPro(String(userResponse.user.subscriptionPlan ?? '').toUpperCase() === 'PRO')
         let selected: Project | undefined = await projectWebhook.findById(params.id)
 
         if (!selected) {
@@ -229,9 +234,33 @@ export default function ProjectDetailPage() {
   }
 
   function openMetadataDialog() {
+    if (!isPro) {
+      toast.error('Recurso disponível no plano Pro', {
+        description: 'Faça upgrade para configurar e aplicar metadados predefinidos.',
+      })
+      return
+    }
+
     setMetadataBpm(project?.predefinedMetadatas?.bpm?.toString() ?? '')
     setMetadataKey(project?.predefinedMetadatas?.key ?? '')
     setMetadataOpen(true)
+  }
+
+  async function inheritMetadata() {
+    if (!project || metadataInheriting) return
+
+    try {
+      setMetadataInheriting(true)
+      await projectWebhook.inheritPredefinedMetadatas(project.id)
+      await refreshTracks()
+      toast.success('Metadados aplicados às faixas existentes')
+    } catch (error) {
+      toast.error('Não foi possível aplicar os metadados', {
+        description: error instanceof Error ? error.message : 'Tente novamente.',
+      })
+    } finally {
+      setMetadataInheriting(false)
+    }
   }
 
   async function handleMetadataSave(e: React.FormEvent) {
@@ -659,10 +688,10 @@ export default function ProjectDetailPage() {
                     <Menu className="size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={openMetadataDialog}>
+                    {isPro && <DropdownMenuItem onClick={openMetadataDialog}>
                       <SlidersHorizontal className="size-4" />
                       Metadados
-                    </DropdownMenuItem>
+                    </DropdownMenuItem>}
                     <DropdownMenuItem onClick={() => setEditOpen(true)}>
                       <Pencil className="size-4" />
                       Editar
@@ -682,39 +711,43 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-            <Button variant="outline" size="default" className="hidden sm:inline-flex" onClick={openMetadataDialog}>
-              <SlidersHorizontal className="size-4" />
-              Metadados
-            </Button>
-            <Dialog open={editOpen} onOpenChange={setEditOpen}>
-              <DialogTrigger render={<Button variant="outline" size="default" className="hidden sm:inline-flex" />}>
-                <Pencil className="size-4" />
-                Editar
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Editar projeto</DialogTitle>
-                  <DialogDescription>Atualize o nome e a descrição deste projeto.</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleEdit} className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="edit-name">Nome</Label>
-                    <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="edit-description">Descrição</Label>
-                    <Input id="edit-description" value={description} onChange={(e) => setDescription(e.target.value)} />
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
-                      {saving ? 'Salvando...' : 'Salvar'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            {isPro && <div className="sm:order-3">
+              <Button variant="outline" size="default" className="hidden sm:inline-flex" onClick={openMetadataDialog}>
+                <SlidersHorizontal className="size-4" />
+                Metadados
+              </Button>
+            </div>}
+            <div className="sm:order-4">
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger render={<Button variant="outline" size="default" className="hidden sm:inline-flex" />}>
+                  <Pencil className="size-4" />
+                  Editar
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Editar projeto</DialogTitle>
+                    <DialogDescription>Atualize o nome e a descrição deste projeto.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleEdit} className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="edit-name">Nome</Label>
+                      <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="edit-description">Descrição</Label>
+                      <Input id="edit-description" value={description} onChange={(e) => setDescription(e.target.value)} />
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
+                        {saving ? 'Salvando...' : 'Salvar'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
 
-            <Dialog open={metadataOpen} onOpenChange={setMetadataOpen}>
+            {isPro && <Dialog open={metadataOpen} onOpenChange={setMetadataOpen}>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Metadados predefinidos</DialogTitle>
@@ -751,6 +784,9 @@ export default function ProjectDetailPage() {
                     </select>
                   </div>
                   <DialogFooter>
+                    <Button type="button" variant="outline" onClick={inheritMetadata} disabled={metadataInheriting}>
+                      {metadataInheriting ? 'Aplicando...' : 'Aplicar às faixas existentes'}
+                    </Button>
                     <Button type="button" variant="outline" onClick={() => {
                       setMetadataBpm('')
                       setMetadataKey('')
@@ -763,9 +799,9 @@ export default function ProjectDetailPage() {
                   </DialogFooter>
                 </form>
               </DialogContent>
-            </Dialog>
+            </Dialog>}
 
-            <div className="col-span-1 sm:col-span-1">
+            <div className="col-span-1 sm:order-1 sm:col-span-1">
               <UploadTrackDialog
                 projectId={project.id}
                 projectName={project.name}
@@ -775,102 +811,106 @@ export default function ProjectDetailPage() {
               />
             </div>
 
-            <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-              <DialogTrigger render={<Button variant="outline" size="default" className="w-full sm:w-auto" />}>
-                <UploadCloud className="size-4" />
-                Compartilhar
-              </DialogTrigger>
-              <DialogContent className="max-w-md gap-5 p-5 sm:p-6">
-                <DialogHeader>
-                  <DialogTitle>Compartilhar projeto</DialogTitle>
-                  <DialogDescription>
-                    Defina a permissão do link e copie o acesso compartilhado.
-                  </DialogDescription>
-                </DialogHeader>
+            <div className="sm:order-2">
+              <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+                <DialogTrigger render={<Button variant="outline" size="default" className="w-full sm:w-auto" />}>
+                  <UploadCloud className="size-4" />
+                  Compartilhar
+                </DialogTrigger>
+                <DialogContent className="max-w-md gap-5 p-5 sm:p-6">
+                  <DialogHeader>
+                    <DialogTitle>Compartilhar projeto</DialogTitle>
+                    <DialogDescription>
+                      Defina a permissão do link e copie o acesso compartilhado.
+                    </DialogDescription>
+                  </DialogHeader>
 
-                <div className="flex flex-col gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="share-permission">Permissão</Label>
-                    <div className="relative">
-                      <select
-                        id="share-permission"
-                        value={sharePermission}
-                        onChange={(e) => setSharePermission(e.target.value as 'READ' | 'DOWNLOAD' | 'EDIT')}
-                        className="h-10 w-full appearance-none rounded-lg border border-input bg-background px-3 pr-9 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-popover [&>option]:text-popover-foreground"
-                      >
-                        <option value="READ">Leitura</option>
-                        <option value="DOWNLOAD">Download</option>
-                        <option value="EDIT">Edição</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <div className="flex flex-col gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="share-permission">Permissão</Label>
+                      <div className="relative">
+                        <select
+                          id="share-permission"
+                          value={sharePermission}
+                          onChange={(e) => setSharePermission(e.target.value as 'READ' | 'DOWNLOAD' | 'EDIT')}
+                          className="h-10 w-full appearance-none rounded-lg border border-input bg-background px-3 pr-9 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-popover [&>option]:text-popover-foreground"
+                        >
+                          <option value="READ">Leitura</option>
+                          <option value="DOWNLOAD">Download</option>
+                          {isPro && <option value="EDIT">Edição</option>}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="share-expiration">Expira em (opcional)</Label>
+                      <Input
+                        id="share-expiration"
+                        type="datetime-local"
+                        value={shareExpiresAt}
+                        onChange={(e) => setShareExpiresAt(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="share-link">Link</Label>
+                      <Input
+                        id="share-link"
+                        value={shareLink}
+                        readOnly
+                        placeholder="Gere um link para copiar"
+                      />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="share-expiration">Expira em (opcional)</Label>
-                    <Input
-                      id="share-expiration"
-                      type="datetime-local"
-                      value={shareExpiresAt}
-                      onChange={(e) => setShareExpiresAt(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="share-link">Link</Label>
-                    <Input
-                      id="share-link"
-                      value={shareLink}
-                      readOnly
-                      placeholder="Gere um link para copiar"
-                    />
-                  </div>
-                </div>
-
-                <DialogFooter className="gap-2 sm:gap-2">
-                  <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setShareOpen(false)}>
-                    Fechar
-                  </Button>
-                  {!shareLink ? (
-                    <Button type="button" className="w-full sm:w-auto" onClick={handleCreateShareLink} disabled={creatingShareLink}>
-                      {creatingShareLink ? 'Gerando...' : 'Gerar link'}
+                  <DialogFooter className="gap-2 sm:gap-2">
+                    <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setShareOpen(false)}>
+                      Fechar
                     </Button>
-                  ) : (
-                    <>
-                      <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleCreateShareLink} disabled={creatingShareLink}>
-                        {creatingShareLink ? 'Atualizando...' : 'Atualizar link'}
+                    {!shareLink ? (
+                      <Button type="button" className="w-full sm:w-auto" onClick={handleCreateShareLink} disabled={creatingShareLink}>
+                        {creatingShareLink ? 'Gerando...' : 'Gerar link'}
                       </Button>
-                      <Button type="button" className="w-full sm:w-auto" onClick={handleCopyShareLink} disabled={copyingShareLink}>
-                        {copyingShareLink ? 'Copiando...' : 'Copiar link'}
-                      </Button>
-                    </>
-                  )}
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                    ) : (
+                      <>
+                        <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleCreateShareLink} disabled={creatingShareLink}>
+                          {creatingShareLink ? 'Atualizando...' : 'Atualizar link'}
+                        </Button>
+                        <Button type="button" className="w-full sm:w-auto" onClick={handleCopyShareLink} disabled={copyingShareLink}>
+                          {copyingShareLink ? 'Copiando...' : 'Copiar link'}
+                        </Button>
+                      </>
+                    )}
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
 
-            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <DialogTrigger render={<Button variant="destructive" size="default" className="hidden sm:inline-flex" />}>
-                <Trash2 className="size-4" />
-                Deletar
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Excluir projeto</DialogTitle>
-                  <DialogDescription>
-                    Esta ação remove o projeto da sua conta. Ela não pode ser desfeita.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-                    {deleting ? 'Excluindo...' : 'Confirmar exclusão'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <div className="sm:order-5">
+              <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <DialogTrigger render={<Button variant="destructive" size="default" className="hidden sm:inline-flex" />}>
+                  <Trash2 className="size-4" />
+                  Deletar
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Excluir projeto</DialogTitle>
+                    <DialogDescription>
+                      Esta ação remove o projeto da sua conta. Ela não pode ser desfeita.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                      {deleting ? 'Excluindo...' : 'Confirmar exclusão'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
 

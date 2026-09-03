@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { trackKeyOptions } from '@/lib/data'
+import { userWebhook } from '@/hooks/api/User.webhook'
 
 export function NewProjectDialog() {
   const router = useRouter()
@@ -27,6 +28,16 @@ export function NewProjectDialog() {
   const [predefinedBpm, setPredefinedBpm] = useState('')
   const [predefinedKey, setPredefinedKey] = useState('')
   const [creating, setCreating] = useState(false)
+  const [isPro, setIsPro] = useState(false)
+
+  async function loadPlan() {
+    try {
+      const response = await userWebhook.me()
+      setIsPro(String(response.user.subscriptionPlan ?? '').toUpperCase() === 'PRO')
+    } catch {
+      setIsPro(false)
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -104,7 +115,10 @@ export function NewProjectDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      setOpen(nextOpen)
+      if (nextOpen) void loadPlan()
+    }}>
       <DialogTrigger render={<Button />}>
         <Plus className="size-4" />
         Novo projeto
@@ -117,6 +131,7 @@ export function NewProjectDialog() {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
+          {isPro && <>
           <div className="flex flex-col gap-2">
             <Label htmlFor="project-name">Nome do projeto</Label>
             <Input
@@ -138,12 +153,13 @@ export function NewProjectDialog() {
           </div>
           
           <div className="flex flex-col gap-2">
-            <Label className='mb-4 mt-4' htmlFor="project-predefined-key">Predefinições de metadados (campos opcionais)</Label>
+            <Label className='mb-4 mt-4' htmlFor="project-predefined-key">Predefinições de metadados (recurso Pro)</Label>
             <Label htmlFor="project-predefined-key">Tom predefinido</Label>
             <select
               id="project-predefined-key"
               value={predefinedKey}
               onChange={(e) => setPredefinedKey(e.target.value)}
+              disabled={!isPro}
               className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent dark:bg-input/30 px-2.5 py-1 text-sm text-foreground transition-colors outline-none appearance-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-50"
             >
               <option value="">Sem tom predefinido</option>
@@ -167,8 +183,10 @@ export function NewProjectDialog() {
               placeholder="Ex: 120"
               value={predefinedBpm}
               onChange={(e) => setPredefinedBpm(e.target.value)}
+              disabled={!isPro}
             />
           </div>
+          </>}
           <DialogFooter>
             <Button type="submit" className="w-full sm:w-auto" disabled={creating}>
               {creating ? 'Criando...' : 'Criar projeto'}

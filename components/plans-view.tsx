@@ -43,10 +43,11 @@ const plans: ReadonlyArray<{
       description: 'Para produtores que precisam de espaço e escala.',
       features: [
         'Projetos ilimitados',
-        '10 GB de armazenamento',
-        'Upload de MP3 e WAV',
-        'Player de áudio integrado',
+        '10 GB de espaço',
+        'Links de compartilhamento com permissão de edição',
+        'Predefinições de metadados por projeto',
         'Suporte prioritário',
+        'Player integrado',
       ],
       highlight: true,
     },
@@ -123,27 +124,27 @@ export function PlansView() {
   }
 
   async function confirmCancelSubscription() {
-  try {
-    setIsLoading(true)
+    try {
+      setIsLoading(true)
 
-    const response = await subscriptionWebhook.cancelSubscription(cancelReason.trim() || undefined)
+      const response = await subscriptionWebhook.cancelSubscription(cancelReason.trim() || undefined)
 
-    setCancelMessage(response?.message || 'O cancelamento foi agendado com sucesso.')
-    setCancelPeriodEnd(response?.currentPeriodEnd ?? null)
-    setCancelConfirmationOpen(false)
-    setCancelSuccessOpen(true)
-    setCancelReason('')
+      setCancelMessage(response?.message || 'O cancelamento foi agendado com sucesso.')
+      setCancelPeriodEnd(response?.currentPeriodEnd ?? null)
+      setCancelConfirmationOpen(false)
+      setCancelSuccessOpen(true)
+      setCancelReason('')
 
-    toast.success('Solicitação de cancelamento concluída')
+      toast.success('Solicitação de cancelamento concluída')
 
-  } catch (error) {
-    toast.error('Não foi possível cancelar a assinatura', {
-      description: error instanceof Error ? error.message : 'Erro desconhecido',
-    })
-  } finally {
-    setIsLoading(false)
+    } catch (error) {
+      toast.error('Não foi possível cancelar a assinatura', {
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
-}
 
   function openCancelConfirmation() {
     setCancelReason('')
